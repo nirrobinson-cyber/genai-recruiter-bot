@@ -1,0 +1,28 @@
+# Core LLM stack (spec §3.3)
+langchain==0.3.27
+langchain-openai==0.3.28
+langchain-community==0.3.27
+langgraph==0.5.4
+openai==1.97.1
+chromadb==1.0.15
+pypdf==5.8.0
+
+# Config & validation
+pydantic==2.11.7
+pydantic-settings==2.10.1
+python-dotenv==1.1.1
+python-dateutil==2.9.0.post0
+
+# UI
+streamlit==1.47.0
+
+# Evaluation (spec §9)
+pandas==2.3.1
+scikit-learn==1.7.1
+matplotlib==3.10.3
+seaborn==0.13.2
+jupyter==1.1.1
+
+# Quality (spec N-9)
+pytest==8.4.1
+ruff==0.12.5

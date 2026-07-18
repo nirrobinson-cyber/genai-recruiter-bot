@@ -1,0 +1,73 @@
+{
+  "flowchart_name": "One Turn in the Conversation",
+  "description": "Describes the full processing logic executed by the Main Agent and its advisors during a single conversational turn.",
+  "legend": {
+    "actors": ["User", "Main Agent", "Exit Advisor", "Info Advisor", "Sched Advisor"]
+  },
+  "nodes": [
+    { "id": "start", "type": "terminator", "label": "Start" },
+    { "id": "user_initiate", "type": "process", "actor": "User", "label": "User Initiates/Response Conv" },
+    { "id": "fill_registration", "type": "process", "actor": "User", "label": "Fill Registration Form" },
+    { "id": "receive_input_1", "type": "process", "actor": "Main Agent", "label": "Receives and Process Input" },
+    { "id": "decide_3_options", "type": "decision", "actor": "Main Agent", "label": "Decides 1 out of 3 Options", "options": ["Exit Advisor", "Sched Advisor", "Info Advisor"] },
+
+    { "id": "send_exit", "type": "process", "actor": "Main Agent", "label": "Sends Output to Exit Advisor" },
+    { "id": "process_history_exit", "type": "process", "actor": "Exit Advisor", "label": "Processes the complete chat history" },
+    { "id": "decide_exit", "type": "decision", "actor": "Exit Advisor", "label": "Decides 1 out of 2 Options", "options": ["End Conversation", "Don't End Conv"] },
+    { "id": "send_main_from_exit", "type": "process", "actor": "Exit Advisor", "label": "Sends Output to Main Agent" },
+
+    { "id": "send_sched", "type": "process", "actor": "Main Agent", "label": "Sends Output to Sched Advisor" },
+    { "id": "process_history_sched", "type": "process", "actor": "Sched Advisor", "label": "Processes the complete chat history" },
+    { "id": "decide_sched", "type": "decision", "actor": "Sched Advisor", "label": "Decides 1 out of 2 Options", "options": ["Don't Sched", "Sched"] },
+    { "id": "sql_retrieve_sched", "type": "data_store", "actor": "Sched Advisor", "label": "SQL: Retrieve Sched Options" },
+    { "id": "send_main_from_sched", "type": "process", "actor": "Sched Advisor", "label": "Sends Output to Main Agent" },
+
+    { "id": "send_info", "type": "process", "actor": "Main Agent", "label": "Sends Output to Info Advisor" },
+    { "id": "process_history_info", "type": "process", "actor": "Info Advisor", "label": "Processes the complete chat history" },
+    { "id": "decide_info", "type": "decision", "actor": "Info Advisor", "label": "Decides 1 out of 2 Options", "options": ["Info Not Needed", "Info Needed"] },
+    { "id": "vector_retrieve_info", "type": "data_store", "actor": "Info Advisor", "label": "Vector DB: Retrieve Info" },
+    { "id": "send_main_from_info", "type": "process", "actor": "Info Advisor", "label": "Sends Output to Main Agent" },
+
+    { "id": "receive_input_2", "type": "process", "actor": "Main Agent", "label": "Receives and Process Input" },
+    { "id": "decide_final", "type": "decision", "actor": "Main Agent", "label": "Decides 1 out of 2 Options", "options": ["Consult Advisor Again", "Sends Output"] },
+    { "id": "send_user", "type": "process", "actor": "Main Agent", "label": "Sends Output to User" },
+    { "id": "end", "type": "terminator", "label": "End" }
+  ],
+  "edges": [
+    { "from": "start", "to": "user_initiate" },
+    { "from": "start", "to": "fill_registration" },
+    { "from": "user_initiate", "to": "receive_input_1" },
+    { "from": "fill_registration", "to": "receive_input_1" },
+    { "from": "receive_input_1", "to": "decide_3_options", "condition": "Consult Advisor" },
+
+    { "from": "decide_3_options", "to": "send_exit", "condition": "Exit Advisor" },
+    { "from": "decide_3_options", "to": "send_sched", "condition": "Sched Advisor" },
+    { "from": "decide_3_options", "to": "send_info", "condition": "Info Advisor" },
+
+    { "from": "send_exit", "to": "process_history_exit" },
+    { "from": "process_history_exit", "to": "decide_exit" },
+    { "from": "decide_exit", "to": "send_main_from_exit", "condition": "End Conversation" },
+    { "from": "decide_exit", "to": "send_main_from_exit", "condition": "Don't End Conv" },
+
+    { "from": "send_sched", "to": "process_history_sched" },
+    { "from": "process_history_sched", "to": "decide_sched" },
+    { "from": "decide_sched", "to": "send_main_from_sched", "condition": "Don't Sched" },
+    { "from": "decide_sched", "to": "sql_retrieve_sched", "condition": "Sched" },
+    { "from": "sql_retrieve_sched", "to": "send_main_from_sched" },
+
+    { "from": "send_info", "to": "process_history_info" },
+    { "from": "process_history_info", "to": "decide_info" },
+    { "from": "decide_info", "to": "send_main_from_info", "condition": "Info Not Needed" },
+    { "from": "decide_info", "to": "vector_retrieve_info", "condition": "Info Needed" },
+    { "from": "vector_retrieve_info", "to": "send_main_from_info" },
+
+    { "from": "send_main_from_exit", "to": "receive_input_2" },
+    { "from": "send_main_from_sched", "to": "receive_input_2" },
+    { "from": "send_main_from_info", "to": "receive_input_2" },
+
+    { "from": "receive_input_2", "to": "decide_final" },
+    { "from": "decide_final", "to": "decide_3_options", "condition": "Consult Advisor Again" },
+    { "from": "decide_final", "to": "send_user", "condition": "Sends Output" },
+    { "from": "send_user", "to": "end" }
+  ]
+}

@@ -1,0 +1,27 @@
+# Environments & secrets
+.venv/
+venv/
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Rebuildable data stores (spec §12)
+data/chroma/
+data/tech.db
+*.db
+
+# Caches & logs
+.langchain.db
+logs/
+*.log
+
+# OS / IDE
+.DS_Store
+.vscode/settings.json
