@@ -58,7 +58,7 @@ app/
     ├── info_advisor/              # retriever.py (Chroma RAG)
     ├── embedding/                 # build_index.py — job-description vector index
     ├── scheduling/                # db_setup.py — SQLite seed
-    └── fine_tuning/               # placeholder — not started (Epic E3)
+    └── fine_tuning/               # dataset_builder.py, launch_job.py, compare.py (Epic E3)
 streamlit_app/streamlit_main.py    # registration form -> chat UI -> dev trace panel
 tests/                             # pytest suite (mocked; zero real API calls by default)
 docs/                              # spec, task plan, devlog, eval notebook + confusion matrix
@@ -130,6 +130,33 @@ python -m tests.eval_replay              # sequential (default)
 python -m tests.eval_replay --mode both  # both, for comparison
 ```
 
+### Exit Advisor: prompted vs fine-tuned (Epic E3)
+
+`app/modules/fine_tuning/` builds a fine-tuning dataset from the same labeled
+conversations (conversation-level 80/20 split, zero leakage — see
+`tests/test_fine_tuning_dataset.py`) and can launch an OpenAI fine-tuning job
+behind the same Strategy-pattern interface the prompted Exit Advisor already
+implements. A real job was attempted on this account and blocked by OpenAI
+with `403 training_not_available`: *"OpenAI is winding down the fine-tuning
+platform and your organization is no longer able to create new fine-tuning
+training jobs."* — an org-wide platform deprecation, not a code, cost, or
+quota issue. `EXIT_ADVISOR_FINETUNED_MODEL` therefore stays empty and the
+prompted advisor remains the default, an accepted outcome rather than a gap.
+
+Baseline (prompted, `gpt-4o-mini`) on the held-out validation split
+(n=10, from `python -m app.modules.fine_tuning.compare`):
+
+| model | class | precision | recall | F1 |
+|---|---|---|---|---|
+| prompted | end | 0.50 | 0.33 | 0.40 |
+| prompted | dont_end | 0.75 | 0.86 | 0.80 |
+
+`end`-recall is the headline metric (spec §5.2: missing an `end` costs more
+than a false one — it means continuing to message an uninterested
+candidate). `compare.py` will score a fine-tuned row automatically if
+`EXIT_ADVISOR_FINETUNED_MODEL` is ever set (e.g. fine-tuning access returns,
+or a different account is used).
+
 ## Live deployment
 
 Not yet deployed — the Streamlit UI is built and verified locally (`streamlit run
@@ -139,7 +166,7 @@ account and a GitHub push that are outside this repo's own scope.
 ## Testing & lint
 
 ```bash
-pytest              # full suite, zero real API calls (105+ tests, all mocked)
+pytest              # full suite, zero real API calls (121 tests, all mocked)
 pytest -m real_api  # scenario tests that DO call the real API/DB (see tests/test_scenarios.py)
 ruff check .
 ```
@@ -147,6 +174,8 @@ ruff check .
 ## Current status
 
 Epics E0–E2, E4, E6 are done; E5 (evaluation) is done as an honest-gap-analysis outcome; E3
-(fine-tuning) is out of scope for now; E7 (this document) is in progress. See
+(fine-tuning) is implemented and tested end-to-end, but the real fine-tuning job is blocked by
+OpenAI's platform deprecation (see the Evaluation section above) — the prompted Exit Advisor
+stays the default, an accepted outcome; E7 (this document) is in progress. See
 [`docs/PROJECT_TASKS.md`](docs/PROJECT_TASKS.md) §0 for the live per-task status table and
 [`docs/DEVLOG.md`](docs/DEVLOG.md) for the full session-by-session history.

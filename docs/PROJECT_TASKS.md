@@ -32,10 +32,10 @@ Legend: ✅ done · 🟡 partial/behavioral-only gap noted · ❌ not started ·
 | 023 | Sched Advisor | ✅ | |
 | 024 | Exit Advisor (prompted baseline) | ✅ | |
 | 025 | Advisor integration tests | ✅ | |
-| 030 | Fine-tuning dataset builder | ❌ | placeholder file only |
-| 031 | Augment edge cases | ❌ | not started |
-| 032 | Launch & register fine-tune job | ❌ | placeholder file only |
-| 033 | Baseline comparison (fine-tuned vs prompted) | ❌ | not started — Exit Advisor always uses the prompted path |
+| 030 | Fine-tuning dataset builder | ✅ | conversation-level split, no leakage; real run: 47 train / 10 val |
+| 031 | Augment edge cases | ✅ | 13 hand-written examples, train-only |
+| 032 | Launch & register fine-tune job | ✅ | fully implemented + tested; real launch attempted and blocked — OpenAI 403 `training_not_available` (org-wide fine-tuning platform deprecation, not a code/quota issue) |
+| 033 | Baseline comparison (fine-tuned vs prompted) | 🟡 | prompted-only comparison run for real (end: P=0.50 R=0.33 F1=0.40, n=10 val); fine-tuned row can't be produced on this account — accepted per user, Exit Advisor stays on the prompted path |
 | 040 | ConversationState | ✅ | |
 | 041 | Turn graph | 🟡 | Behaviorally complete plain-Python control flow; **not** the literal `langgraph` `StateGraph` spec §3.3 mandates — discussed & declined twice, most recently 2026-07-19 |
 | 042 | Main Agent prompts | ✅ | |

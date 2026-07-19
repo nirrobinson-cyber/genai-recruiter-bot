@@ -15,6 +15,7 @@ __pycache__/
 # Rebuildable data stores (spec §12)
 data/chroma/
 data/tech.db
+data/fine_tuning/
 *.db
 
 # Caches & logs

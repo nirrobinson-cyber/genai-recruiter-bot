@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     main_agent_model: str = "gpt-4o-mini"
     advisor_model: str = "gpt-4o-mini"
     exit_advisor_finetuned_model: str = ""  # empty => prompted fallback (Strategy, spec §5.2)
+    fine_tune_base_model: str = (
+        "gpt-4o-mini-2024-07-18"  # base for the Exit Advisor fine-tune (GRB-032)
+    )
     embedding_model: str = "text-embedding-3-small"
 
     # --- Behavior ---

@@ -20,9 +20,9 @@ FALLBACK = ExitAdvisorOutput(
 )
 
 
-def _call_llm(history: list[dict[str, str]]) -> ExitAdvisorOutput:
+def _call_llm(history: list[dict[str, str]], model: str | None = None) -> ExitAdvisorOutput:
     settings = get_settings()
-    model = settings.exit_advisor_finetuned_model or settings.advisor_model
+    model = model or settings.exit_advisor_finetuned_model or settings.advisor_model
     return cached_parse(
         model=model,
         temperature=settings.decision_temperature,
@@ -31,6 +31,11 @@ def _call_llm(history: list[dict[str, str]]) -> ExitAdvisorOutput:
     )
 
 
-def decide(history: list[dict[str, str]]) -> ExitAdvisorOutput:
-    """Decide end/dont_end from the complete chat history (rule R-2, N-3)."""
-    return get_structured_output(lambda: _call_llm(history), fallback=FALLBACK)
+def decide(history: list[dict[str, str]], model: str | None = None) -> ExitAdvisorOutput:
+    """Decide end/dont_end from the complete chat history (rule R-2, N-3).
+
+    `model` overrides the usual settings-based selection — used by the E3
+    baseline comparison (GRB-033) to call the prompted and fine-tuned models
+    explicitly, through the same retry/fallback/cache path as production.
+    """
+    return get_structured_output(lambda: _call_llm(history, model), fallback=FALLBACK)
