@@ -94,6 +94,85 @@ def test_run_turn_defers_escalation_to_the_next_turn_not_same_turn() -> None:
     assert state.qualifying_info_shared is True
 
 
+def test_rejecting_offered_slots_advances_past_them_not_back_to_the_original_offer() -> None:
+    """Reported live-transcript bug: bot offers Apr slots -> candidate asks
+    for 15/5/24 -> bot correctly offers May 15 slots -> candidate says
+    "none" -> bot must NOT fall back to re-offering the original April
+    slots (the actual bug: "no date named" always defaulted to searching
+    from `now`, ignoring how far the conversation had already progressed)."""
+    state = ConversationState()
+
+    first = run_turn("Can we schedule for tomorrow?", state)
+    assert first["action"] == "schedule"
+    april_ids = {slot["schedule_id"] for slot in first["slots"]}
+    assert april_ids
+
+    second = run_turn("15/5/24", state)
+    assert second["action"] == "schedule"
+    may_ids = {slot["schedule_id"] for slot in second["slots"]}
+    assert may_ids
+    assert may_ids.isdisjoint(april_ids)
+
+    third = run_turn("none", state)
+    third_ids = {slot["schedule_id"] for slot in third["slots"]}
+    assert third_ids.isdisjoint(april_ids), "must not fall back to the original April slots"
+    assert third_ids.isdisjoint(may_ids), "must not repeat the just-rejected May slots either"
+
+
+def test_reject_with_none_gets_new_later_slots() -> None:
+    """Directive scenario 1: reject -> new later slots offered."""
+    state = ConversationState()
+
+    first = run_turn("Can we schedule for tomorrow?", state)
+    assert first["action"] == "schedule"
+    first_ids = {slot["schedule_id"] for slot in first["slots"]}
+    assert first_ids
+
+    second = run_turn("none", state)
+    assert second["action"] == "schedule"
+    second_ids = {slot["schedule_id"] for slot in second["slots"]}
+    assert second_ids, "must offer something rather than giving up after one rejection"
+    assert second_ids.isdisjoint(first_ids)
+
+
+def test_other_dates_phrasing_also_gets_different_slots() -> None:
+    """Directive scenario 2: "other dates" -> different slots (a different
+    real-phrasing rejection than "none", same underlying behavior)."""
+    state = ConversationState()
+
+    first = run_turn("Can we schedule for tomorrow?", state)
+    first_ids = {slot["schedule_id"] for slot in first["slots"]}
+    assert first_ids
+
+    second = run_turn("Do you have any other times?", state)
+    assert second["action"] == "schedule"
+    second_ids = {slot["schedule_id"] for slot in second["slots"]}
+    assert second_ids
+    assert second_ids.isdisjoint(first_ids)
+
+
+def test_double_rejection_keeps_advancing_never_repeats() -> None:
+    """Directive scenario 3: double rejection -> keeps advancing (the exact
+    infinite-loop shape from the live transcript: reject, reject again,
+    never settle back on an earlier batch)."""
+    state = ConversationState()
+
+    first = run_turn("Can we schedule for tomorrow?", state)
+    first_ids = {slot["schedule_id"] for slot in first["slots"]}
+    assert first_ids
+
+    second = run_turn("none", state)
+    second_ids = {slot["schedule_id"] for slot in second["slots"]}
+    assert second_ids
+    assert second_ids.isdisjoint(first_ids)
+
+    third = run_turn("other dates", state)
+    third_ids = {slot["schedule_id"] for slot in third["slots"]}
+    assert third_ids, "should still be able to find further slots after two rejections"
+    assert third_ids.isdisjoint(first_ids)
+    assert third_ids.isdisjoint(second_ids)
+
+
 def test_numeral_years_of_experience_does_not_block_proactive_offer() -> None:
     """Conversation 12 turn 3 pattern: "Yes, 3 years' experience" used to be
     wrongly treated as a garbled date attempt (the bare digit "3") once

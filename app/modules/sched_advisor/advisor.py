@@ -13,7 +13,7 @@ own pointer without checking it against what was actually offered.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from app.config import get_settings
 from app.llm_client import cached_parse, history_to_messages
@@ -94,8 +94,14 @@ slot's id from the list below.
 If instead the candidate names a CONCRETE day/date/time that does NOT match any offered \
 slot (a specific weekday, a numeric date like "14/4/24", a month/day, an explicit time), \
 that is still decision="sched" — they're proposing a different time and we should look up \
-availability for THAT date, not decline. Only use "dont_sched" for a vague/unclear reply \
-that names no concrete day or date at all (e.g. "when", "not sure", "let me check").
+availability for THAT date, not decline.
+
+If the candidate REJECTS the offered batch outright without naming a new date ("none", \
+"none of those", "those don't work", "other dates", "do you have anything else"), that is \
+ALSO decision="sched" — they still want to schedule, just not these specific times, so look \
+up different (later) availability. Only use "dont_sched" for a genuinely vague/unclear reply \
+that neither rejects the offer nor names any day or date at all (e.g. "when", "not sure", \
+"let me check").
 
 Examples:
 History: candidate says "Monday at 3 PM is good."
@@ -105,6 +111,9 @@ Decision: confirmed, confirmed_schedule_id=<that slot's id> (reason: candidate a
 History: candidate says "14/4/24"
 Offered slots are all later in April, none on the 14th.
 Decision: sched (reason: candidate proposed a different concrete date; look up availability for it).
+
+History: candidate says "None of those work for me."
+Decision: sched (reason: candidate rejected the offered batch; look up different, later availability).
 
 History: candidate says "when"
 Decision: dont_sched (reason: no concrete day/date given — this is a request for the offer, not a new date).
@@ -176,11 +185,24 @@ def _confirm_booking(verdict: SchedAdvisorOutput, offered_slots: list[dict]) -> 
 
 
 def decide(
-    history: list[dict[str, str]], now: datetime, offered_slots: list[dict] | None = None
+    history: list[dict[str, str]],
+    now: datetime,
+    offered_slots: list[dict] | None = None,
+    previously_offered_slots: list[dict] | None = None,
 ) -> SchedAdvisorOutput:
-    """Decide sched/dont_sched/confirmed from the complete chat history (rule R-2, N-3)."""
+    """Decide sched/dont_sched/confirmed from the complete chat history (rule R-2, N-3).
+
+    `offered_slots` is the CURRENT pending batch (for confirmation-matching,
+    day/time against a specific offer). `previously_offered_slots` is every
+    slot ever offered this conversation, across ALL batches — used so a
+    rejection ("none", "other dates") never re-offers something already
+    shown, and the "no date named" fallback advances past the latest
+    previously-offered date instead of always restarting from `now` (the
+    reported bug: rejecting an offer with no new date kept re-surfacing the
+    very first, earliest slots)."""
 
     offered_slots = offered_slots or []
+    previously_offered_slots = previously_offered_slots or []
     verdict = get_structured_output(lambda: _call_llm(history, offered_slots), fallback=FALLBACK)
 
     if verdict.decision == "confirmed":
@@ -188,6 +210,10 @@ def decide(
 
     if verdict.decision != "sched":
         return verdict
+
+    excluded_ids = {slot["schedule_id"] for slot in previously_offered_slots}
+    already_offered_dates = [date.fromisoformat(slot["date"]) for slot in previously_offered_slots]
+    floor_date = max(already_offered_dates) if already_offered_dates else None
 
     latest_message = _latest_user_message(history)
     date_range = resolve_relative_date(latest_message, now)
@@ -199,23 +225,31 @@ def decide(
                 reason="candidate's requested date wasn't clear enough to look up slots; ask them to clarify",
             )
         # No date was named at all (e.g. shared qualifying background, or
-        # declined a time without proposing a new one) — proactively offer
-        # the nearest available slots instead of asking an open-ended
-        # "when works?" question.
-        date_range = default_forward_window(now)
+        # rejected the offered times without proposing a new one) —
+        # proactively offer the nearest available slots instead of asking an
+        # open-ended "when works?" question. Advance past whatever's already
+        # been offered so a rejection doesn't loop back to the same slots.
+        date_range = default_forward_window(now, after=floor_date)
 
     raw_slots = get_available_slots.invoke(
         {
             "position": POSITION,
             "from_date": date_range.from_date.isoformat(),
             "to_date": date_range.to_date.isoformat(),
-            "limit": 3,
+            "limit": 3 + len(excluded_ids),
         }
     )
+    candidates = [slot for slot in raw_slots if slot["schedule_id"] not in excluded_ids]
     proposed_slots = [
         SlotProposal(schedule_id=slot["schedule_id"], date=slot["date"], time=slot["time"])
-        for slot in raw_slots
+        for slot in candidates[:3]
     ]
+    if not proposed_slots:
+        return SchedAdvisorOutput(
+            decision="sched",
+            proposed_slots=[],
+            reason="no further open slots in that window after excluding previously offered times",
+        )
     return SchedAdvisorOutput(
         decision="sched", proposed_slots=proposed_slots, reason=verdict.reason
     )

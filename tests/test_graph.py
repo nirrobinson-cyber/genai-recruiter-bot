@@ -62,7 +62,7 @@ def _mock_sched(
     monkeypatch.setattr(
         graph.sched_advisor,
         "decide",
-        lambda history, now, offered_slots=None: SchedAdvisorOutput(
+        lambda history, now, offered_slots=None, previously_offered_slots=None: SchedAdvisorOutput(
             decision=decision, proposed_slots=slots or [], reason="mocked"
         ),
     )
@@ -249,7 +249,10 @@ def test_run_turn_now_override_reaches_sched_advisor(monkeypatch: pytest.MonkeyP
     seen: dict[str, object] = {}
 
     def fake_decide(
-        history: list[dict[str, str]], now: datetime, offered_slots: list[dict] | None = None
+        history: list[dict[str, str]],
+        now: datetime,
+        offered_slots: list[dict] | None = None,
+        previously_offered_slots: list[dict] | None = None,
     ) -> SchedAdvisorOutput:
         seen["now"] = now
         return SchedAdvisorOutput(decision="sched", proposed_slots=[], reason="mocked")

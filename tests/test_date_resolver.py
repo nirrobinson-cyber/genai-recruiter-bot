@@ -117,3 +117,17 @@ def test_default_forward_window_starts_tomorrow() -> None:
     assert result == DateRange(
         date(2024, 4, 18), date(2024, 4, 18) + timedelta(days=SCHED_LOOKAHEAD_DAYS)
     )
+
+
+def test_default_forward_window_advances_past_after_date() -> None:
+    """Regression test for the reported bug: a rejection with no new date
+    ("none", "other dates") must advance the search past whatever's already
+    been offered, not always restart from `now` (which kept re-surfacing
+    the same earliest slots)."""
+    result = default_forward_window(NOW, after=date(2024, 5, 15))
+    assert result.from_date == date(2024, 5, 16)
+
+
+def test_default_forward_window_after_in_the_past_still_clamps_to_tomorrow() -> None:
+    result = default_forward_window(NOW, after=date(2024, 1, 1))
+    assert result.from_date == date(2024, 4, 18)

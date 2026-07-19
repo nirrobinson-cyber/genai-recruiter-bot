@@ -80,14 +80,21 @@ def _looks_like_tomorrow(lowered: str) -> bool:
     )
 
 
-def default_forward_window(now: datetime) -> DateRange:
+def default_forward_window(now: datetime, after: date | None = None) -> DateRange:
     """Nearest-available-slots window for when the candidate hasn't named any
-    date at all (e.g. just shared qualifying background, or declined a
-    specific time without proposing a new one) — the Sched Advisor uses this
+    date at all (e.g. just shared qualifying background, or rejected the
+    offered times without proposing a new one) — the Sched Advisor uses this
     to proactively offer the soonest options instead of asking an
-    open-ended "when works?" question."""
+    open-ended "when works?" question.
+
+    `after`, if given, is the latest date already offered/rejected this
+    conversation — the window starts the day AFTER it, never `now`, so a
+    vague rejection ("none", "other dates") advances the search instead of
+    always re-surfacing the same earliest slots (see CLAUDE.md's 2026-07-19
+    "rejected slots re-offered" entry)."""
     today = now.date()
-    return _forward_window(today + timedelta(days=1), today)
+    anchor = (after + timedelta(days=1)) if after is not None else today + timedelta(days=1)
+    return _forward_window(anchor, today)
 
 
 def _forward_window(anchor: date, today: date) -> DateRange:

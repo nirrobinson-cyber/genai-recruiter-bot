@@ -150,6 +150,68 @@ def test_decide_sched_with_no_date_named_defaults_to_nearest_available_slots(
     assert fake_tool.calls[0]["from_date"] == "2024-04-18"
 
 
+def test_decide_rejection_with_no_date_advances_past_previously_offered_slots(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression test for the reported bug: rejecting the offered batch
+    ("none") with no new date named used to always search from `now`,
+    re-surfacing the very first (earliest) slots. Must instead search from
+    after the latest previously-offered date, and exclude those exact ids
+    even if the DB happens to return them again."""
+    monkeypatch.setattr(
+        advisor,
+        "_call_llm",
+        lambda history, offered_slots: SchedAdvisorOutput(
+            decision="sched", proposed_slots=[], reason="candidate rejected the offered batch"
+        ),
+    )
+    fake_tool = _FakeTool(
+        rows=[
+            {"schedule_id": 1, "date": "2024-04-18", "time": "09:00:00"},  # already offered
+            {"schedule_id": 2, "date": "2024-05-16", "time": "10:00:00"},  # genuinely new
+        ]
+    )
+    monkeypatch.setattr(advisor, "get_available_slots", fake_tool)
+    previously_offered = [{"schedule_id": 1, "date": "2024-04-18", "time": "09:00:00"}]
+
+    result = advisor.decide(
+        [{"role": "user", "content": "none"}],
+        now=NOW,
+        previously_offered_slots=previously_offered,
+    )
+
+    assert result.decision == "sched"
+    assert [slot.schedule_id for slot in result.proposed_slots] == [2]
+    assert (
+        fake_tool.calls[0]["from_date"] == "2024-04-19"
+    )  # day after the previous offer, not `now`
+    assert fake_tool.calls[0]["limit"] == 4  # 3 + len(excluded_ids)
+
+
+def test_decide_sched_with_no_further_slots_after_exclusion_reports_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        advisor,
+        "_call_llm",
+        lambda history, offered_slots: SchedAdvisorOutput(
+            decision="sched", proposed_slots=[], reason="candidate rejected the offered batch"
+        ),
+    )
+    fake_tool = _FakeTool(rows=[{"schedule_id": 1, "date": "2024-04-18", "time": "09:00:00"}])
+    monkeypatch.setattr(advisor, "get_available_slots", fake_tool)
+    previously_offered = [{"schedule_id": 1, "date": "2024-04-18", "time": "09:00:00"}]
+
+    result = advisor.decide(
+        [{"role": "user", "content": "none"}],
+        now=NOW,
+        previously_offered_slots=previously_offered,
+    )
+
+    assert result.decision == "sched"
+    assert result.proposed_slots == []
+
+
 def test_decide_falls_back_when_llm_call_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     def always_fails(
         history: list[dict[str, str]], offered_slots: list[dict]

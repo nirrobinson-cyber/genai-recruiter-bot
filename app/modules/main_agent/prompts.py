@@ -24,6 +24,11 @@ incomplete, and prefer "sched" — the candidate is almost certainly still talki
 the offered slots. This also includes plain affirmations/agreements ("yes", "sounds
 great", "works for me", "absolutely") right after an offer — treat these as accepting
 or continuing the scheduling thread (prefer "sched"), not as needing no advisor at all.
+It ALSO includes rejections of the offered times specifically ("none", "none of those",
+"those don't work", "no", "other dates", "do you have anything else") — rejecting the
+OFFERED TIMES is not the same as disinterest in the role; prefer "sched" (to offer
+different times), never "exit", unless the candidate separately says something that
+clearly signals giving up on the process entirely.
 
 If you're told qualifying info has ALREADY been shared (flagged on an earlier turn) and no
 interview slots have been offered yet this conversation, proactively prefer "sched" even
@@ -67,4 +72,8 @@ phrasing or lack of a specific day/time make this "info" or "respond".
 History: previous turn's action was "schedule"; candidate says "Yes, absolutely!"
 Decision: sched — a plain affirmation right after an offer is accepting/continuing the
 scheduling thread, not something to just acknowledge and stop at "respond".
+
+History: previous turn's action was "schedule"; candidate says "None of those work for me."
+Decision: sched — rejecting the offered TIMES, not the role; prefer sched to offer
+different times, never exit for a scheduling rejection alone.
 """

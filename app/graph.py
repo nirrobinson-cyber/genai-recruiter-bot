@@ -115,7 +115,8 @@ def _synthesize(
             message = f"I can offer these interview times: {_format_slots(proposed)}. Which works best for you?"
         else:
             message = (
-                "I don't see any open interview slots in that window — could you try another day?"
+                "I don't have any further open interview times to offer right now — "
+                "I'll have the recruiter follow up with you directly to find a time that works."
             )
         return (
             MainAgentOutput(
@@ -291,16 +292,22 @@ def run_turn(
                 break
         elif advisor_name == "sched":
             verdicts["sched"] = sched_advisor.decide(
-                state.history, now=resolved_now, offered_slots=offered_slots
+                state.history,
+                now=resolved_now,
+                offered_slots=offered_slots,
+                previously_offered_slots=state.offered_slots_history,
             )
+            new_slots = [slot.model_dump() for slot in verdicts["sched"].proposed_slots]
             trace.append(
                 {
                     "advisor": "sched",
                     "decision": verdicts["sched"].decision,
                     "reason": verdicts["sched"].reason,
-                    "slots": [slot.model_dump() for slot in verdicts["sched"].proposed_slots],
+                    "slots": new_slots,
                 }
             )
+            if verdicts["sched"].decision == "sched" and new_slots:
+                state.offered_slots_history.extend(new_slots)
             if verdicts["sched"].decision in ("sched", "confirmed"):
                 break
         else:
