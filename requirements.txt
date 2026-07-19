@@ -17,7 +17,6 @@ python-dateutil==2.9.0.post0
 streamlit==1.47.0
 
 # Evaluation (spec §9)
-pandas==2.3.1
 scikit-learn==1.7.1
 matplotlib==3.10.3
 seaborn==0.13.2

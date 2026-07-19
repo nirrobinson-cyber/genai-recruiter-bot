@@ -11,6 +11,52 @@
 
 ---
 
+## 0. Delivery Status Dashboard (live — update this table, not just prose, whenever a task's state changes)
+
+Legend: ✅ done · 🟡 partial/behavioral-only gap noted · ❌ not started · ⏳ blocked
+
+| GRB | Task | Status | Note |
+|-----|------|--------|------|
+| 001 | Init repo & tooling | ✅ | |
+| 002 | Config & secrets | ✅ | |
+| 003 | Assets in place | ✅ | |
+| 004 | CLAUDE.md | ✅ | |
+| 005 | CI-lite | ✅ | |
+| 010 | SQLite port | ✅ | |
+| 011 | ScheduleRepository | ✅ | |
+| 012 | Embedding pipeline | ✅ | |
+| 013 | Retrieval smoke test | ✅ | `tests/test_info_retriever.py` |
+| 020 | AdvisorOutput contracts | ✅ | |
+| 021 | Info Advisor | ✅ | |
+| 022 | Date resolver | 🟡 | Core 4 expressions + numeric dates + a "tomorrow" typo done; still pure regex/dateutil, not the spec's LLM-assisted design — **deliberately deferred**, see CLAUDE.md 2026-07-19 note |
+| 023 | Sched Advisor | ✅ | |
+| 024 | Exit Advisor (prompted baseline) | ✅ | |
+| 025 | Advisor integration tests | ✅ | |
+| 030 | Fine-tuning dataset builder | ❌ | placeholder file only |
+| 031 | Augment edge cases | ❌ | not started |
+| 032 | Launch & register fine-tune job | ❌ | placeholder file only |
+| 033 | Baseline comparison (fine-tuned vs prompted) | ❌ | not started — Exit Advisor always uses the prompted path |
+| 040 | ConversationState | ✅ | |
+| 041 | Turn graph | 🟡 | Behaviorally complete plain-Python control flow; **not** the literal `langgraph` `StateGraph` spec §3.3 mandates — discussed & declined twice, most recently 2026-07-19 |
+| 042 | Main Agent prompts | ✅ | |
+| 043 | Terminal chat loop (+ trace printing) | ✅ | |
+| 044 | Canonical-flow verification | ✅ | `tests/verify_canonical_flows.py`, all 4 flows pass |
+| 050 | Replay harness | ✅ | `tests/test_evals.ipynb`, reuses `tests/eval_replay.py`'s case-building logic |
+| 051 | Metrics (accuracy, per-class P/R/F1, confusion matrix heatmap) | ✅ | `tests/test_evals.ipynb`; heatmap saved to `docs/eval_confusion_matrix.png` |
+| 052 | Error analysis (miss table + written failure-pattern analysis) | ✅ | `tests/test_evals.ipynb` — 3 named failure patterns, ranked by impact |
+| 053 | Tune & re-run | 🟡 | 2 tuning iterations run, before/after documented in-notebook: 31.8% → 29.5% (regression, diagnosed) → 52.3% final. **S-1's 85% not met** — honest gap analysis in notebook per spec's accepted alternative; 2 of 3 remaining patterns need a design decision (richer routing signal; sequential full-conversation replay), not another prompt patch |
+| 054 | (Stretch) Ablations | ❌ | not started |
+| 060 | Registration form | ✅ | `streamlit_app/streamlit_main.py`, feeds `ConversationState.registration_data` + a personalized opening greeting |
+| 061 | Chat UI | ✅ | SMS-style `st.chat_message`/`st.chat_input` thread, reuses `app.graph.run_turn` verbatim (zero UI-layer logic); dev-mode action badges; `end` locks input; Reset button |
+| 062 | Dev trace panel | ✅ | Sidebar, toggleable — per-turn advisor trace incl. decisions/reasons/retrieved slots+chunks |
+| 063 | Deploy | 🟡 | App verified locally (real `streamlit run` boot + full AppTest-driven interaction incl. a real API call); actual Streamlit Community Cloud connection requires the user's own account/GitHub push — not something that can be done from here |
+| 070 | README.md | ✅ | purpose, architecture (Mermaid turn-flow diagram), structure, setup, usage, eval results, honest "not yet deployed" note, current-status pointer |
+| 071 | Final quality pass | 🟡 | `ruff check .` clean, `ruff format .` applied repo-wide (51 files, previously-drifted files now clean), stray `tmp_verify_db.py` removed, dead-code spot-check clean. Screenshots/GIF of the demo not done — needs a real browser, unavailable in this environment |
+| 072 | Tag v1.0 + presentation outline | ❌ | not started — tagging is a git action pending user confirmation |
+| CORE-REV | **Core-flow revision** — booking-completion path + proactive escalation + slot rendering, target ≥75% eval accuracy | 🟡 | Ordinal/partial slot confirmation ("the second one", "Tuesday at 10 AM works") verified working live (3 independent test paths); meaningless-input guard ("f") shipped and tested. **Eval harness rebuilt to replay sequentially** (`tests/eval_replay.py --mode sequential`, default; `--mode isolated` kept for comparison), **plus divergence-artifact tagging** (raw vs. adjusted accuracy, every miss tagged GENUINE/DIVERGENCE). Current: **raw 59.1% (26/44), adjusted 72.2% (26/36)** excluding 8 divergence artifacts. A numeral-years-of-experience date-parsing bug fixed (real win). An escalation-timing guard was tried, found to regress accuracy on the full dataset (schedule recall 78.9%→31.6%), and reverted — kept as an `xfail`-marked regression test (`tests/test_scenarios.py`) documenting why. Still below the ≥75% target; the continue-vs-schedule ambiguity after qualifying-info-sharing has genuinely inconsistent ground truth for identical inputs across conversations (see CLAUDE.md) — needs a richer signal than a blanket rule, deferred. |
+
+---
+
 ## 1. Effort & Duration Summary (the answer to "how long?")
 
 | Scenario | Net effort | Calendar duration |

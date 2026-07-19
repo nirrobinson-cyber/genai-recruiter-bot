@@ -1,11 +1,12 @@
-"""CLI entry point — terminal chat loop (full implementation in Phase 4, GRB-043).
+"""CLI entry point — terminal chat loop for the recruiting chatbot."""
 
-Run:  python -m app.main --help
-"""
+from __future__ import annotations
 
 import argparse
 
 from app.config import get_settings, setup_logging
+from app.graph import run_turn
+from app.state import ConversationState
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -24,7 +25,18 @@ def main() -> None:
     if args.check_config:
         print(f"Config OK — main model: {settings.main_agent_model}, now(): {settings.now()}")
         return
-    print("Chat loop not implemented yet — arrives in Phase 4 (GRB-043). Try --check-config.")
+
+    state = ConversationState()
+    print("Recruiter bot ready. Type 'quit' to exit.")
+    while True:
+        user_input = input("You: ").strip()
+        if user_input.lower() in {"quit", "exit"}:
+            print("Bot: Thanks for chatting.")
+            break
+        result = run_turn(user_input, state)
+        print(f"Bot [{result['action']}]: {result['message']}")
+        for step in result["trace"]:
+            print(f"  trace: {step['advisor']} -> {step['decision']} ({step['reason']})")
 
 
 if __name__ == "__main__":
