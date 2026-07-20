@@ -115,9 +115,12 @@ is the formal notebook deliverable (spec §9) with the full error analysis.
   (23/44). Confusion matrix: [`docs/eval_confusion_matrix.png`](docs/eval_confusion_matrix.png).
 - **Sequential full-conversation replay** (`--mode sequential`, default — one real conversation
   state walked turn-by-turn, matching spec §9's "feed the system the history up to that point"
-  literally): **59.1% raw (26/44), 72.2% adjusted (26/36)** once conversations where our bot's
+  literally): **52.3% raw (23/44), 67.6% adjusted (23/34)** once conversations where our bot's
   own generated offer necessarily diverges from the dataset's scripted one are excluded (tagged
-  automatically — see `_is_divergence_artifact` in `tests/eval_replay.py`).
+  automatically — see `_is_divergence_artifact` in `tests/eval_replay.py`). This number moves
+  whenever routing/scheduling code changes, since the bot's own decisions shape the rest of each
+  conversation — see `docs/DEVLOG.md`'s 2026-07-20 entry for the most recent re-measurement and
+  why 3 narrow, individually-verified bug fixes didn't move the aggregate number.
 
 Neither run meets the spec's 85% target; the honest gap analysis (ranked failure patterns, what
 would actually close the gap) is in the notebook and `docs/DEVLOG.md`'s CORE-REV entries — the
@@ -166,7 +169,7 @@ account and a GitHub push that are outside this repo's own scope.
 ## Testing & lint
 
 ```bash
-pytest              # full suite, zero real API calls (121 tests, all mocked)
+pytest              # full suite, zero real API calls (122 tests, all mocked)
 pytest -m real_api  # scenario tests that DO call the real API/DB (see tests/test_scenarios.py)
 ruff check .
 ```

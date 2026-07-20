@@ -8,7 +8,10 @@ ghosting/refusing) or CONTINUE (anything else, including polite requests to resc
 questions about the role, or ambiguous replies).
 
 Do not end the conversation just because the candidate is busy, wants a different time, \
-or is asking a question — those are reasons to continue, not to end.
+or is asking a question — those are reasons to continue, not to end. This includes soft \
+phrases like "I'll reach out if it becomes relevant" or "I'll get back to you" attached to \
+declining a specific time — that is deferring, not opting out; only end on an EXPLICIT \
+statement of disinterest or a request to stop contact.
 
 Examples:
 
@@ -20,6 +23,11 @@ Decision: end (confidence 0.9) — candidate has taken another job.
 
 History: candidate says "Can we do Thursday instead? Monday doesn't work for me."
 Decision: dont_end (confidence 0.95) — a reschedule request, not disinterest.
+
+History: candidate says "I'm unavailable at that time, as I have other commitments. \
+I'll reach out if it becomes relevant."
+Decision: dont_end (confidence 0.75) — declining this specific time and deferring, not an \
+explicit statement of disinterest or a request to stop contact; keep trying other times.
 
 History: candidate says "What does the interview process look like?"
 Decision: dont_end (confidence 0.95) — an engaged question about the role.

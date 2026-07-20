@@ -14,6 +14,9 @@ the whole point is confirming what the real model actually decides.
 
 from __future__ import annotations
 
+import calendar
+from datetime import date as date_cls
+
 import pytest
 
 from app.graph import run_turn
@@ -21,6 +24,17 @@ from app.modules.main_agent import agent
 from app.state import ConversationState
 
 pytestmark = pytest.mark.real_api
+
+
+def _weekday_name(iso_date: str) -> str:
+    return calendar.day_name[date_cls.fromisoformat(iso_date).weekday()]
+
+
+def _time_label(time_str: str) -> str:
+    hour = int(time_str.split(":")[0])
+    meridiem = "AM" if hour < 12 else "PM"
+    hour12 = hour % 12 or 12
+    return f"{hour12} {meridiem}"
 
 
 def test_first_experience_mention_does_not_escalate_to_sched() -> None:
@@ -171,6 +185,70 @@ def test_double_rejection_keeps_advancing_never_repeats() -> None:
     assert third_ids, "should still be able to find further slots after two rejections"
     assert third_ids.isdisjoint(first_ids)
     assert third_ids.isdisjoint(second_ids)
+
+
+def test_vague_enthusiasm_after_offer_does_not_falsely_confirm_a_booking() -> None:
+    """Conversation 2 turn 7 pattern: once slots are already offered, a
+    vague enthusiastic reply that doesn't name any specific day/time must
+    not be misread as accepting one of them (real bug: "Sounds great! I'd
+    be happy to schedule a meeting" got classified "confirmed" and booked
+    an arbitrary slot the candidate never actually picked)."""
+    state = ConversationState()
+    state.add_message("assistant", "Could you share a bit about your Python experience?")
+    state.add_message("user", "I have three years' experience with Django and Flask.")
+
+    first = run_turn("Can we schedule an interview?", state)
+    assert first["action"] == "schedule"
+    assert first["slots"]
+
+    second = run_turn("Sounds great! I'd be happy to schedule a meeting", state)
+
+    assert second["action"] != "end", (
+        "must not falsely confirm a booking from vague enthusiasm alone"
+    )
+
+
+def test_confirmation_matches_offered_slot_by_weekday_name() -> None:
+    """Conversation 6 turn 5 pattern: candidate confirms by weekday name +
+    time ("Friday 11 AM sounds great") rather than the literal ISO date —
+    real bug: the LLM had to compute weekday-from-date itself and got it
+    wrong, misclassifying a real match as a brand-new date request. The
+    offered-slots prompt block is now annotated with the weekday name."""
+    state = ConversationState()
+    state.add_message("assistant", "Could you share a bit about your Python experience?")
+    state.add_message("user", "I have three years' experience with Django and Flask.")
+
+    first = run_turn("Can we schedule an interview?", state)
+    assert first["action"] == "schedule"
+    assert first["slots"]
+    slot = first["slots"][0]
+    reply = f"{_weekday_name(slot['date'])} at {_time_label(slot['time'])} sounds great."
+
+    second = run_turn(reply, state)
+
+    assert second["action"] == "end"
+    assert slot["date"] in second["message"]
+
+
+def test_soft_decline_with_future_interest_does_not_trigger_exit() -> None:
+    """Conversation 8 turn 7 pattern: declining a specific offered time with
+    a soft, deferring close ("I'll reach out if it becomes relevant") was
+    misread as disinterest and ended the conversation — it's a decline of
+    this time, not an opt-out."""
+    state = ConversationState()
+    state.add_message("assistant", "Could you share a bit about your Python experience?")
+    state.add_message("user", "I have three years' experience with Django and Flask.")
+
+    first = run_turn("Can we schedule an interview?", state)
+    assert first["action"] == "schedule"
+
+    second = run_turn(
+        "I'm unavailable at that time, as I have other commitments. "
+        "I'll reach out if it becomes relevant",
+        state,
+    )
+
+    assert second["action"] != "end"
 
 
 def test_numeral_years_of_experience_does_not_block_proactive_offer() -> None:

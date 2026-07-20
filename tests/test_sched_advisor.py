@@ -212,6 +212,31 @@ def test_decide_sched_with_no_further_slots_after_exclusion_reports_empty(
     assert result.proposed_slots == []
 
 
+def test_call_llm_annotates_offered_slots_with_weekday_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression test: the LLM used to be given only raw ISO dates and had
+    to compute the day-of-week itself to match a candidate's weekday
+    reference ("Friday 11 AM") against an offered slot — an error-prone
+    calculation for a model. The offered-slots block must spell out the
+    weekday name so the model never has to do that math."""
+    captured: dict = {}
+
+    def fake_cached_parse(**kwargs):
+        captured.update(kwargs)
+        return SchedAdvisorOutput(decision="dont_sched", proposed_slots=[], reason="n/a")
+
+    monkeypatch.setattr(advisor, "cached_parse", fake_cached_parse)
+
+    advisor._call_llm(
+        [{"role": "user", "content": "Friday 11 AM sounds great."}],
+        offered_slots=[{"schedule_id": 42, "date": "2024-04-19", "time": "11:00:00"}],
+    )
+
+    slots_message = next(m for m in captured["messages"] if "Offered slots" in m["content"])
+    assert "2024-04-19 (Friday) 11:00:00" in slots_message["content"]
+
+
 def test_decide_falls_back_when_llm_call_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     def always_fails(
         history: list[dict[str, str]], offered_slots: list[dict]

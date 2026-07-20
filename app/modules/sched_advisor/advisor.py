@@ -12,6 +12,7 @@ own pointer without checking it against what was actually offered.
 
 from __future__ import annotations
 
+import calendar
 import re
 from datetime import date, datetime
 
@@ -101,12 +102,25 @@ If the candidate REJECTS the offered batch outright without naming a new date ("
 ALSO decision="sched" — they still want to schedule, just not these specific times, so look \
 up different (later) availability. Only use "dont_sched" for a genuinely vague/unclear reply \
 that neither rejects the offer nor names any day or date at all (e.g. "when", "not sure", \
-"let me check").
+"let me check") — this INCLUDES general enthusiasm about scheduling that doesn't pick a \
+specific offered day/time ("sounds great", "I'd love to schedule a meeting") — that is \
+NOT a confirmation of any particular slot; ask them to pick one instead of guessing which.
+
+Each offered slot below is annotated with its weekday name in parentheses — use that (not \
+your own date-to-weekday math) to match a candidate's weekday reference to the right slot.
 
 Examples:
 History: candidate says "Monday at 3 PM is good."
-Offered slots include one on Monday at 3 PM.
+Offered slots include one on Monday (weekday shown below) at 3 PM.
 Decision: confirmed, confirmed_schedule_id=<that slot's id> (reason: candidate accepted the offered slot).
+
+History: candidate says "Friday 11 AM sounds great."
+Offered slots include one on Friday (weekday shown below) at 11 AM.
+Decision: confirmed, confirmed_schedule_id=<that Friday 11 AM slot's id> (reason: candidate accepted the offered slot, matched by weekday+time).
+
+History: candidate says "Sounds great! I'd be happy to schedule a meeting"
+No specific day or time is named — just general willingness.
+Decision: dont_sched (reason: candidate is enthusiastic but didn't pick one of the offered slots; ask them which day/time works).
 
 History: candidate says "14/4/24"
 Offered slots are all later in April, none on the 14th.
@@ -132,7 +146,9 @@ def _call_llm(history: list[dict[str, str]], offered_slots: list[dict]) -> Sched
     messages = history_to_messages(system_prompt, history)
     if offered_slots:
         slots_block = "\n".join(
-            f"- id={slot['schedule_id']}: {slot['date']} {slot['time']}" for slot in offered_slots
+            f"- id={slot['schedule_id']}: {slot['date']} "
+            f"({calendar.day_name[date.fromisoformat(slot['date']).weekday()]}) {slot['time']}"
+            for slot in offered_slots
         )
         messages.append(
             {
