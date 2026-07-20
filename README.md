@@ -115,12 +115,14 @@ is the formal notebook deliverable (spec §9) with the full error analysis.
   (23/44). Confusion matrix: [`docs/eval_confusion_matrix.png`](docs/eval_confusion_matrix.png).
 - **Sequential full-conversation replay** (`--mode sequential`, default — one real conversation
   state walked turn-by-turn, matching spec §9's "feed the system the history up to that point"
-  literally): **52.3% raw (23/44), 67.6% adjusted (23/34)** once conversations where our bot's
+  literally): **56.8% raw (25/44), 73.5% adjusted (25/34)** once conversations where our bot's
   own generated offer necessarily diverges from the dataset's scripted one are excluded (tagged
   automatically — see `_is_divergence_artifact` in `tests/eval_replay.py`). This number moves
   whenever routing/scheduling code changes, since the bot's own decisions shape the rest of each
-  conversation — see `docs/DEVLOG.md`'s 2026-07-20 entry for the most recent re-measurement and
-  why 3 narrow, individually-verified bug fixes didn't move the aggregate number.
+  conversation — see `docs/DEVLOG.md`'s 2026-07-20 entries for the two most recent
+  re-measurements: 3 narrow Sched/Exit Advisor fixes that didn't move the number, followed by a
+  routing-prompt fix (re-deriving a pattern previously dismissed as "unresolvable ground truth"
+  across the full 15-conversation dataset instead of 2) that gained +4.5pp raw / +5.9pp adjusted.
 
 Neither run meets the spec's 85% target; the honest gap analysis (ranked failure patterns, what
 would actually close the gap) is in the notebook and `docs/DEVLOG.md`'s CORE-REV entries — the

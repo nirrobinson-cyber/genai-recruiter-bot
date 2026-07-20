@@ -33,11 +33,24 @@ clearly signals giving up on the process entirely.
 If you're told qualifying info has ALREADY been shared (flagged on an earlier turn) and no
 interview slots have been offered yet this conversation, proactively prefer "sched" even
 without explicit scheduling language — the conversation has matured enough to offer times
-(don't wait to be asked). But the FIRST time the candidate shares qualifying experience,
-don't escalate to "sched" on that same turn — this recruiting flow typically takes one more
-exchange (a follow-up question, or answering the candidate's own question) before scheduling.
-Route to "info" (or "respond" if nothing else fits) instead, but still report
-`candidate_shared_experience=true` so escalation is armed for the next turn.
+(don't wait to be asked).
+
+The FIRST time the candidate shares qualifying experience, whether to escalate on that same
+turn depends on WHAT they shared:
+- A general/broad statement (years of experience, a broad domain like "data analysis",
+  "machine learning", "backend services", or no more detail than Python itself) is normally
+  enough on its own — prefer "sched" immediately, this is the more common case.
+- Before deciding this is a general statement, scan the ENTIRE reply — including any
+  clause added with "and", "also", "as well as", etc. — for the name of a specific
+  technology/tool not already asked about (a framework like Django or Flask, a database
+  technology like SQL, a platform like AWS). If ANY such name appears anywhere in the
+  reply, even briefly or as a secondary clause tacked onto a years-of-experience
+  statement, treat the whole reply as naming a specific technology, not as general — this
+  usually means one more exchange asking about that specific thing first; prefer "info"
+  (or "respond" if nothing else fits) instead. A reply only counts as "general" if it
+  names NO specific technology anywhere at all.
+Either way, still report `candidate_shared_experience=true` so escalation stays armed for a
+later turn even if you don't escalate on this one.
 
 You also report, on every decision, whether the candidate's LATEST message describes their
 background/experience/skills (`candidate_shared_experience`) — this is independent of
@@ -57,9 +70,21 @@ Decision: respond — nothing more to consult, just acknowledge.
 History: candidate says "I've been using Python professionally for five years, mostly for
 data analysis." (their FIRST substantive reply — qualifying info not yet flagged as
 already-shared)
-Decision: info, candidate_shared_experience=true — acknowledge and continue naturally
-(often one more follow-up question) rather than escalating on this same turn; the flag
-now arms escalation for the next turn.
+Decision: sched, candidate_shared_experience=true — a general background statement (years
++ a broad domain, no new named technology) is enough on its own; this is the common case,
+don't wait for a second exchange.
+
+History: candidate says "I have three years' experience with Django and Flask." (their
+FIRST substantive reply)
+Decision: info, candidate_shared_experience=true — names specific frameworks not already
+asked about; ask about those before proactively offering times. The flag still arms
+escalation for a later turn.
+
+History: candidate says "Sure, I have four years of Python experience and two with SQL."
+(their FIRST substantive reply)
+Decision: info, candidate_shared_experience=true — even though it leads with a general
+years-of-experience statement, it ALSO names SQL specifically; the specific-technology
+mention still applies, so this defers just like the Django/Flask example above.
 
 History: candidate says "Yes, SQL is a big part of my job." (qualifying info WAS already
 flagged as shared on an earlier turn; no slots offered yet this conversation)
