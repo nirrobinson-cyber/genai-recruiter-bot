@@ -176,9 +176,9 @@ ruff check .
 
 ## Current status
 
-Epics E0–E2, E4, E6 are done; E5 (evaluation) is done as an honest-gap-analysis outcome; E3
-(fine-tuning) is implemented and tested end-to-end, but the real fine-tuning job is blocked by
-OpenAI's platform deprecation (see the Evaluation section above) — the prompted Exit Advisor
-stays the default, an accepted outcome; E7 (this document) is in progress. See
+Epics E0–E2, E3, E4, E6 are done — E3 (fine-tuning) closed via its own documented-fallback
+acceptance criterion, since the real fine-tune job is blocked by OpenAI's platform deprecation
+(see the Evaluation section above), not by anything left undone here. E5 (evaluation) is done as
+an honest-gap-analysis outcome; E7 (this document) is in progress. See
 [`docs/PROJECT_TASKS.md`](docs/PROJECT_TASKS.md) §0 for the live per-task status table and
 [`docs/DEVLOG.md`](docs/DEVLOG.md) for the full session-by-session history.
