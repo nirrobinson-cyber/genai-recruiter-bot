@@ -169,12 +169,15 @@ or a different account is used).
 
 ## Known limitations (closed, not tracked as open work)
 
-- Two narrow behavioral gaps — ordinal slot confirmation (e.g. "the second one") and a
-  `continue`-vs-`schedule` action-labeling edge case from the 2026-07-20 fix pass — were
-  investigated, could not be reliably reproduced/scoped, and are **closed as accepted limitations
-  for v1.1** rather than left open. Full detail in `docs/DEVLOG.md`'s CORE-REV entries and
-  `docs/PROJECT_TASKS.md` §0. If either resurfaces with a real reproduction, it should be opened as
-  a new, separate issue rather than reopening these.
+- Two narrow behavioral gaps — ordinal/positional slot confirmation (e.g. "the second one", "ok
+  choose 1") and a `continue`-vs-`schedule` action-labeling edge case from the 2026-07-20 fix pass
+  — are **closed as accepted limitations for v1.1**, not left as open work. The ordinal-confirmation
+  one was genuinely reproduced via a live transcript on 2026-07-21, with root cause identified
+  (the Sched Advisor's confirmation prompt has no instruction for numeric/positional references,
+  so it understands the intent but fails to map it to the right slot) and a concrete fix scoped —
+  deliberately left unimplemented by choice, not because it couldn't be found. Full detail in
+  `docs/DEVLOG.md`'s CORE-REV entries and `docs/PROJECT_TASKS.md` §0. If either resurfaces beyond
+  what's already documented, open it as a new, separate issue rather than reopening these.
 - Spec's 85% eval accuracy target (S-1) is not met at either replay mode — see the Evaluation
   section above for the honest gap analysis.
 

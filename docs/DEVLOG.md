@@ -261,3 +261,51 @@ target crossed, live Streamlit Cloud deploy, docs reconciliation, and this final
 consistently across README/PROJECT_TASKS/DEVLOG, GitHub remote and tags in place. Nothing left
 requires further code changes — remaining steps (finishing the user's own review pass, packaging
 for zip submission when ready) are entirely on the user's side.
+
+## 2026-07-21 (cont. 5) — BUG-1 genuinely reproduced via a live transcript; deliberately left unfixed
+
+User pasted a real transcript from the live Streamlit app that reproduced the ordinal-confirmation
+gap for real: after 3 unnumbered slots were offered (Sep 15, 09:00/10:00/11:00), replying "ok
+choose 1" did not book the first slot — it returned an entirely different batch (Sep 17) instead.
+Reproduced cleanly in isolation (state seeded with the exact offered slots, single `run_turn` call)
+to confirm root cause rather than trust the full-conversation replay, which itself diverged from
+the live transcript at an earlier turn (see below) — same lesson as always: verify the specific
+claim, don't assume a cascaded replay tells you why.
+
+**Root cause, confirmed via real trace:** `CONFIRMATION_PROMPT_ADDENDUM`
+(`app/modules/sched_advisor/advisor.py`) has instructions and worked examples for matching by
+weekday name and by explicit date, but nothing for a numeric/positional reference ("1", "the first
+one", "option 2"). The model's own returned reason for "ok choose 1" was literally *"Candidate
+accepted a proposed time"* — it understood the intent — but it returned `decision="sched"` instead
+of `"confirmed"` with a `confirmed_schedule_id`, because it has no instructed way to turn "1" into
+a slot id. `decision="sched"` (not `"confirmed"`) then falls through to the plain date-lookup path,
+which finds no date in "ok choose 1" and defaults to "nearest available slots after whatever was
+already offered" — hence a silently different batch instead of a booking or an error.
+
+**A concrete fix was scoped and reviewed, not implemented — user's explicit, deliberate choice**:
+number the offered slots visibly in the message text (e.g. "1) Tue Sep 17 at 09:00  2) ..."), and
+teach `CONFIRMATION_PROMPT_ADDENDUM` to match a bare number to the corresponding list position,
+verified against the actual offered list the same way `confirmed_schedule_id` already is today —
+additive alongside existing free-text matching, not a replacement. Also scoped: scenario tests for
+"1"/"2"/"number 3", and a note that this almost certainly won't move the eval accuracy number since
+none of the 15 dataset conversations use numbered replies — this is a real live-usage gap the
+synthetic eval simply doesn't cover, not something the eval methodology would ever have caught.
+
+**Two more things found while investigating, neither part of this bug:**
+- A separate, smaller date-parsing gap: `date_resolver`'s month-name pattern matches "september
+  2024 14" as month+year only, silently dropping the trailing "14" and defaulting to the 1st of
+  the month. Confirmed via replay, not fixed, not in scope of BUG-1.
+- The full-conversation replay of the user's transcript diverged from the live transcript at the
+  bare "sep 2024" turn (month+year, no day) — my replay got a schedule offer, the live transcript
+  got a decline, from the literal same input. Consistent with real LLM sampling variance at a
+  genuinely ambiguous boundary case (this project has hit this before, e.g. the 2026-07-20 fix
+  needing a retry due to "known temperature=0 structured-output sampling variance") — not chased,
+  correctly attributed to variance rather than assumed to be a deterministic bug.
+
+**Docs updated to reflect this honestly before submission**: `docs/PROJECT_TASKS.md`'s CORE-REV row
+and `README.md`'s "Known limitations" section both corrected — BUG-1 was previously described as
+"could not be reproduced"; that's no longer true, and leaving stale text in submitted
+self-documentation would misrepresent the project's actual state. The decision to leave the fix
+unimplemented is preserved as a deliberate choice, not confused with "couldn't find the bug." No
+app/prompt code changed in this session; `git status` clean, everything already committed/pushed
+before this entry.
