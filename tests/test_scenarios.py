@@ -19,8 +19,10 @@ from datetime import date as date_cls
 
 import pytest
 
+from app.config import get_settings
 from app.graph import run_turn
 from app.modules.main_agent import agent
+from app.modules.sched_advisor import advisor as sched_advisor
 from app.state import ConversationState
 
 pytestmark = pytest.mark.real_api
@@ -55,6 +57,52 @@ def test_first_experience_mention_does_not_escalate_to_sched() -> None:
 
     assert routing.next_step != "sched"
     assert routing.candidate_shared_experience is True
+
+
+@pytest.mark.xfail(
+    reason=(
+        "Confirmed 2026-07-21: Sched Advisor's own BASE_PROMPT has no independent knowledge "
+        "of the 'wait one more exchange on a first named technology' rule that lives in Main "
+        "Agent's routing prompt — called directly, it agrees to schedule (and even looks up "
+        "real slots) on the exact turn routing would defer on. NOT a currently-reachable "
+        "production bug: app/graph.py's run_turn loop (sched_deferred_this_turn) gatekeeps "
+        "which advisor gets consulted, so real conversations never reach Sched Advisor on this "
+        "turn shape. Kept as a documented defense-in-depth gap rather than fixed now — "
+        "deliberately not adding a matching caveat to BASE_PROMPT yet (would duplicate business "
+        "logic across two prompts); revisit if routing's gatekeeping logic ever changes."
+    ),
+    strict=False,
+)
+def test_sched_advisor_alone_defers_on_first_technology_mention_bypassing_routing() -> None:
+    """Cross-agent consistency check, not a currently-reachable production
+    path: the "wait one more exchange before scheduling if the candidate's
+    first substantive reply names a specific new technology" rule (see
+    test_first_experience_mention_does_not_escalate_to_sched) lives ONLY in
+    Main Agent's routing prompt. Sched Advisor's own BASE_PROMPT has no
+    independent knowledge of it — today it's only kept from being reached on
+    this exact turn shape by app/graph.py's run_turn loop
+    (sched_deferred_this_turn), which gatekeeps which advisor gets
+    consulted at all. This test bypasses that gatekeeping and calls
+    sched_advisor.decide() directly on the identical first-mention turn, to
+    get real evidence of what Sched Advisor would do if it were ever reached
+    without Main Agent's routing standing in front of it (e.g. a future
+    direct-call entry point, or routing logic changing independently) —
+    before deciding whether BASE_PROMPT needs its own matching caveat."""
+    history = [
+        {
+            "role": "assistant",
+            "content": "Hi, thanks for submitting your application for our Python Developer role. Could you share a bit about your Python experience?",
+        },
+        {"role": "user", "content": "I have three years' experience with Django and Flask."},
+    ]
+
+    verdict = sched_advisor.decide(history, now=get_settings().now())
+
+    assert verdict.decision != "sched", (
+        f"Sched Advisor alone agreed to schedule on a bare first-technology-mention turn "
+        f"(reason: {verdict.reason!r}) — confirms the cross-agent consistency gap is real, "
+        f"not just latent."
+    )
 
 
 def test_general_experience_statement_escalates_on_first_reply() -> None:
