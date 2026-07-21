@@ -35,9 +35,34 @@ for _key in ("OPENAI_API_KEY", "DEMO_NOW_OVERRIDE"):
 
 from app.config import get_settings  # noqa: E402
 from app.graph import run_turn  # noqa: E402
+from app.modules.embedding.build_index import build_index  # noqa: E402
+from app.modules.scheduling.db_setup import DB_PATH, build_database  # noqa: E402
 from app.state import ConversationState  # noqa: E402
 
 st.set_page_config(page_title="GenAI Recruiter Bot", page_icon="💬")
+
+
+@st.cache_resource
+def _ensure_data_stores_built() -> None:
+    """Streamlit Community Cloud clones a fresh, ephemeral checkout on every
+    deploy/reboot, and data/tech.db + data/chroma/ are gitignored/rebuildable
+    by design (spec §12) — so they never exist there, and Cloud gives no shell
+    to run the setup scripts manually. Build them once per container instead.
+    `st.cache_resource` makes this run exactly once per process even though
+    Streamlit re-executes the whole script on every rerun. Locally this is a
+    no-op once `python -m app.modules.scheduling.db_setup` /
+    `build_index` have already been run per the README setup steps.
+    """
+    if not DB_PATH.exists():
+        with st.spinner("First run: building the scheduling database..."):
+            build_database()
+    chroma_dir = Path(get_settings().chroma_persist_dir)
+    if not chroma_dir.exists() or not any(chroma_dir.iterdir()):
+        with st.spinner("First run: building the job-description vector index..."):
+            build_index()
+
+
+_ensure_data_stores_built()
 
 
 def _opening_message(registration: dict[str, Any]) -> str:

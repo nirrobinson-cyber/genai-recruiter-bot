@@ -169,21 +169,61 @@ or a different account is used).
 
 ## Known open items
 
-- **Ordinal/partial slot confirmation** (e.g. "the second one") — could not be reproduced in 3
-  independent real-execution test paths; still needs a live-reproduced transcript (dev trace
-  panel) before it can be diagnosed.
-- **`continue`-vs-`schedule` action labeling** — a turn where the Sched Advisor correctly declines
-  a vague confirmation and the bot restates the open offer is labeled `action="continue"`, but the
-  eval gold expects `"schedule"` for that turn. Identified during the 2026-07-20 fix pass; not yet
-  scoped or fixed.
+- Two narrow behavioral gaps (ordinal slot confirmation e.g. "the second one"; a `continue`-vs-
+  `schedule` action-labeling edge case from the 2026-07-20 fix pass) are **deliberately descoped
+  for this submission** rather than chased further — full detail in `docs/DEVLOG.md`'s CORE-REV
+  entries and `docs/PROJECT_TASKS.md` §0.
 - Spec's 85% eval accuracy target (S-1) is not met at either replay mode — see the Evaluation
   section above for the honest gap analysis.
 
-## Live deployment
+## Live deployment (GRB-063)
 
-Not yet deployed — the Streamlit UI is built and verified locally (`streamlit run
-streamlit_app/streamlit_main.py`), but connecting it to Streamlit Community Cloud requires an
-account and a GitHub push that are outside this repo's own scope.
+Not yet deployed — the Streamlit UI is fully built and verified locally, but the actual Streamlit
+Community Cloud connection needs your own GitHub + Streamlit account, so it can't be completed
+from this environment. Runbook to do it:
+
+**1. Push the repo to GitHub.** Community Cloud deploys straight from a GitHub repo (public repo
+for the free tier; a linked private repo also works if your Streamlit account has GitHub App
+access to it). `.gitignore` already keeps `.env`/`data/tech.db`/`data/chroma/` out of the push —
+verify `git status` is clean of secrets before pushing.
+
+**2. Data bootstrap — already handled in code.** Community Cloud clones a fresh, ephemeral
+checkout on every deploy/reboot, and there's no shell access to run `db_setup`/`build_index`
+manually afterward. `streamlit_app/streamlit_main.py` now builds `data/tech.db` and
+`data/chroma/` automatically on first run if they're missing (`_ensure_data_stores_built()`,
+cached via `st.cache_resource` so it only runs once per container) — verified locally by moving
+the real `data/tech.db` and `data/chroma/` aside, running the app fresh via Streamlit's `AppTest`
+harness, and confirming both were rebuilt (8352 scheduling rows, real Chroma collection) with zero
+exceptions, then restoring the original files. No manual step needed on Cloud for this.
+
+**3. Create the app on [share.streamlit.io](https://share.streamlit.io).**
+   - Sign in with the GitHub account that owns (or was granted access to) the repo.
+   - "New app" → pick the repo/branch → **main file path: `streamlit_app/streamlit_main.py`**.
+   - Python version: let it read `requirements.txt` (already pinned versions throughout).
+
+**4. Add secrets.** In the app's **Settings → Secrets**, paste (TOML format, no `.env` file
+involved — Cloud has its own secrets store):
+   ```toml
+   OPENAI_API_KEY = "sk-..."
+   DEMO_NOW_OVERRIDE = "2024-04-15T10:00:00Z"
+   ```
+   `streamlit_main.py` already bridges `st.secrets` → `os.environ` before `app.config`'s settings
+   singleton is constructed, so no code change is needed here — this is the one existing piece of
+   deploy groundwork already in place. `DEMO_NOW_OVERRIDE` matters: the seeded DB's slots live in
+   2024, so without it the Sched Advisor's "nearest available slots" window would search from the
+   real wall-clock date and likely find nothing.
+
+**5. Deploy and smoke-test.** First boot will take longer than a normal rerun (real embedding
+build via OpenAI, per step 2) — watch the Cloud logs for the "building the job-description vector
+index" spinner text to confirm it's the one-time bootstrap and not a hang. Then run the same
+checklist used for local verification: registration form submits, a real chat turn returns a
+DB-verified answer, the dev-mode trace panel toggles, Reset works.
+
+**Cost/footprint note not yet addressed:** `requirements.txt` bundles evaluation-only packages
+(`jupyter`, `matplotlib`, `seaborn`, `scikit-learn`) that the deployed app itself never imports —
+they only slow down Cloud's build. Splitting into a slim `requirements.txt` (app) +
+`requirements-dev.txt` (eval/notebook) would shrink build time; not done here since it's a real
+but non-blocking optimization, not a deploy blocker.
 
 ## Testing & lint
 

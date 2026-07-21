@@ -180,3 +180,29 @@ After:  raw 65.9% (29/44), adjusted 82.9% (29/35)
 ## 2026-07-21 (cont.) — Docs reconciliation: CORE-REV row overstated one open item as resolved
 
 No code changes this session. `docs/PROJECT_TASKS.md`'s CORE-REV row had drifted out of sync with `CLAUDE.md`: it claimed ordinal/partial slot confirmation ("the second one") was "verified working live (3 independent test paths)," while `CLAUDE.md` (and the user, re-confirming live) both state the opposite — it could not be reproduced in those 3 paths and is still waiting on a user-supplied live-reproduced transcript from the dev trace panel. Corrected the CORE-REV row's status back to 🟡 and named both still-open items explicitly: BUG-1 (ordinal slot confirmation, unreproduced) and BUG-2 (the `continue`-vs-`schedule` action-labeling gap from the 2026-07-20 fix pass, not yet scoped). Added a matching "Known open items" section to `README.md` so the two docs can't silently diverge again without both being touched.
+
+## 2026-07-21 (cont. 2) — GRB-063: closed the deploy data-bootstrap gap; descoped BUG-1/BUG-2 for submission
+
+**Deploy gap found and fixed.** Writing the full Streamlit Community Cloud runbook (README's new
+"Live deployment (GRB-063)" section) surfaced a real blocker that would have made the documented
+deploy steps fail: Community Cloud clones a fresh, ephemeral checkout on every deploy/reboot, and
+`data/tech.db`/`data/chroma/` are gitignored (rebuildable by design, spec §12) — so neither would
+exist there, and Cloud gives no shell to run `db_setup`/`build_index` manually afterward. Fixed by
+adding `_ensure_data_stores_built()` to `streamlit_app/streamlit_main.py`: builds both on first
+run if missing, cached via `st.cache_resource` so it runs exactly once per container despite
+Streamlit re-executing the whole script on every rerun. `build_index()` already fails gracefully
+to a deterministic hash-embedding fallback with no `OPENAI_API_KEY` (pre-existing behavior), so
+this can't crash the app even with a missing/bad key.
+
+Verified for real: moved the actual `data/tech.db` (8352 rows, live test bookings from today's
+session) and `data/chroma/` aside to simulate a fresh clone, ran the app via Streamlit's `AppTest`
+harness, confirmed zero exceptions and both stores rebuilt (8352 fresh scheduling rows, a real
+Chroma collection), then restored the original files exactly (not a reseed — moved back, not
+rebuilt again, so today's live bookings weren't lost). Full suite re-run after: `pytest` 123/123,
+`ruff check .` clean.
+
+**BUG-1/BUG-2 explicitly descoped for this submission**, per user decision — not silently dropped.
+`docs/PROJECT_TASKS.md`'s CORE-REV row and `README.md`'s "Known open items" both updated to say so
+plainly rather than continuing to carry them as open blockers. Actual Streamlit Cloud account
+connection remains the one GRB-063 sub-item that needs the user directly (GitHub push + Cloud
+account) — everything code-side is now in place for it to work when they do.
