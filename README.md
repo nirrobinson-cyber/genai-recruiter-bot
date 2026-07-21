@@ -167,12 +167,14 @@ candidate). `compare.py` will score a fine-tuned row automatically if
 `EXIT_ADVISOR_FINETUNED_MODEL` is ever set (e.g. fine-tuning access returns,
 or a different account is used).
 
-## Known open items
+## Known limitations (closed, not tracked as open work)
 
-- Two narrow behavioral gaps (ordinal slot confirmation e.g. "the second one"; a `continue`-vs-
-  `schedule` action-labeling edge case from the 2026-07-20 fix pass) are **deliberately descoped
-  for this submission** rather than chased further — full detail in `docs/DEVLOG.md`'s CORE-REV
-  entries and `docs/PROJECT_TASKS.md` §0.
+- Two narrow behavioral gaps — ordinal slot confirmation (e.g. "the second one") and a
+  `continue`-vs-`schedule` action-labeling edge case from the 2026-07-20 fix pass — were
+  investigated, could not be reliably reproduced/scoped, and are **closed as accepted limitations
+  for v1.1** rather than left open. Full detail in `docs/DEVLOG.md`'s CORE-REV entries and
+  `docs/PROJECT_TASKS.md` §0. If either resurfaces with a real reproduction, it should be opened as
+  a new, separate issue rather than reopening these.
 - Spec's 85% eval accuracy target (S-1) is not met at either replay mode — see the Evaluation
   section above for the honest gap analysis.
 

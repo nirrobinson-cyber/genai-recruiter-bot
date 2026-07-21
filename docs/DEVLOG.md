@@ -233,3 +233,31 @@ browser), a presentation decision (GRB-072's own AC calls for one; previously sk
 per user request — whether the course still requires it is the user's call), a final re-tag once
 those are done, the user's own review pass over commits since `v1.0`, and confirming the actual
 course submission format/deadline.
+
+## 2026-07-21 (cont. 4) — Project close-out: v1.1 tagged, BUG-1/BUG-2 formally closed, scope trimmed
+
+User made several final scoping calls: demo screenshots/GIF (GRB-071) and a presentation outline
+(GRB-072) both marked not relevant for this submission — dropped, not deferred. User's own commit
+review is in progress on their end (not tracked here). Submission format confirmed as a zip file,
+no near-term deadline pressure.
+
+**BUG-1 and BUG-2 formally closed** (previously "descoped for this submission," now closed
+outright, by explicit request): "if we see it in the future, open a ticket" — i.e. don't carry
+these as tracked open work at all; a future real reproduction should be filed as a new, separate
+issue rather than reopening this history. `README.md`'s "Known open items" section retitled
+"Known limitations (closed, not tracked as open work)"; `docs/PROJECT_TASKS.md`'s CORE-REV row
+updated to say CLOSED explicitly, with the same "reopen as new issue, don't reopen this line"
+instruction. Worth noting for accuracy: the live transcript offered as possible BUG-1 evidence
+(`"21/4/24/10 am look ok"`) was investigated and found to test a different code path (explicit
+numeric-date matching, fixed 2026-07-19) rather than the ordinal/positional matching BUG-1 is
+actually about — so BUG-1 closes as "never reproduced," not "verified fixed." That distinction is
+preserved in the docs rather than smoothed over, in case it's ever revisited.
+
+`v1.1` tagged at this point (`dcbdbd0` and now this commit) and pushed to
+`github.com/nirrobinson-cyber/genai-recruiter-bot`, summarizing everything since `v1.0`: CORE-REV
+target crossed, live Streamlit Cloud deploy, docs reconciliation, and this final scope trim.
+
+**Where the project stands**: code/tests/lint all green, deployed and live, documented
+consistently across README/PROJECT_TASKS/DEVLOG, GitHub remote and tags in place. Nothing left
+requires further code changes — remaining steps (finishing the user's own review pass, packaging
+for zip submission when ready) are entirely on the user's side.
