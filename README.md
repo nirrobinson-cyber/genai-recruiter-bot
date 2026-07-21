@@ -167,6 +167,18 @@ candidate). `compare.py` will score a fine-tuned row automatically if
 `EXIT_ADVISOR_FINETUNED_MODEL` is ever set (e.g. fine-tuning access returns,
 or a different account is used).
 
+## Known open items
+
+- **Ordinal/partial slot confirmation** (e.g. "the second one") — could not be reproduced in 3
+  independent real-execution test paths; still needs a live-reproduced transcript (dev trace
+  panel) before it can be diagnosed.
+- **`continue`-vs-`schedule` action labeling** — a turn where the Sched Advisor correctly declines
+  a vague confirmation and the bot restates the open offer is labeled `action="continue"`, but the
+  eval gold expects `"schedule"` for that turn. Identified during the 2026-07-20 fix pass; not yet
+  scoped or fixed.
+- Spec's 85% eval accuracy target (S-1) is not met at either replay mode — see the Evaluation
+  section above for the honest gap analysis.
+
 ## Live deployment
 
 Not yet deployed — the Streamlit UI is built and verified locally (`streamlit run
