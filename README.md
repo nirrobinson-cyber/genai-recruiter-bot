@@ -115,14 +115,19 @@ is the formal notebook deliverable (spec §9) with the full error analysis.
   (23/44). Confusion matrix: [`docs/eval_confusion_matrix.png`](docs/eval_confusion_matrix.png).
 - **Sequential full-conversation replay** (`--mode sequential`, default — one real conversation
   state walked turn-by-turn, matching spec §9's "feed the system the history up to that point"
-  literally): **56.8% raw (25/44), 73.5% adjusted (25/34)** once conversations where our bot's
+  literally): **65.9% raw (29/44), 82.9% adjusted (29/35)** once conversations where our bot's
   own generated offer necessarily diverges from the dataset's scripted one are excluded (tagged
-  automatically — see `_is_divergence_artifact` in `tests/eval_replay.py`). This number moves
-  whenever routing/scheduling code changes, since the bot's own decisions shape the rest of each
-  conversation — see `docs/DEVLOG.md`'s 2026-07-20 entries for the two most recent
-  re-measurements: 3 narrow Sched/Exit Advisor fixes that didn't move the number, followed by a
-  routing-prompt fix (re-deriving a pattern previously dismissed as "unresolvable ground truth"
-  across the full 15-conversation dataset instead of 2) that gained +4.5pp raw / +5.9pp adjusted.
+  automatically — see `_is_divergence_artifact` in `tests/eval_replay.py`) — **exceeding the
+  CORE-REV ≥75% adjusted target** for the first time. This number moves whenever routing/
+  scheduling code changes, since the bot's own decisions shape the rest of each conversation —
+  see `docs/DEVLOG.md`'s 2026-07-20/2026-07-21 entries for the full path here: a routing-prompt
+  fix (re-deriving an escalation-timing pattern previously dismissed as "unresolvable ground
+  truth" across the full 15-conversation dataset instead of 2, +4.5pp/+5.9pp), then a same-turn
+  "double-consult inconsistency" fix in `app/graph.py` (+9.1pp/+9.4pp, crossed the target). A
+  separately-investigated "slot confirmation" pattern turned out not to be a code bug at all —
+  our system's real-time nearest-available-slot offering structurally can't always match a
+  synthetic dataset's fixed script — confirmed via full replay and correctly tagged as a
+  divergence artifact rather than patched.
 
 Neither run meets the spec's 85% target; the honest gap analysis (ranked failure patterns, what
 would actually close the gap) is in the notebook and `docs/DEVLOG.md`'s CORE-REV entries — the
@@ -171,7 +176,7 @@ account and a GitHub push that are outside this repo's own scope.
 ## Testing & lint
 
 ```bash
-pytest              # full suite, zero real API calls (122 tests, all mocked)
+pytest              # full suite, zero real API calls (123 tests, all mocked)
 pytest -m real_api  # scenario tests that DO call the real API/DB (see tests/test_scenarios.py)
 ruff check .
 ```

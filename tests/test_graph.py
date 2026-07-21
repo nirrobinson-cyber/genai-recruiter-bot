@@ -542,6 +542,38 @@ def test_run_turn_guard_does_not_trip_across_separate_messages(
     assert all(result["consulted"] != ["guard"] for result in results)
 
 
+def test_run_turn_sched_deferral_holds_across_a_same_turn_re_consult(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression test for the "double-consult inconsistency" bug: the first
+    routing call decides NOT to escalate to sched yet (first-time qualifying
+    experience, "wait one more exchange" rule — candidate_shared_experience
+    is still reported so the flag arms for next turn), consults info, which
+    declines. A second routing call within the SAME turn must not flip to
+    "sched" just because it now has more context — the "wait" decision holds
+    for the rest of this turn. Sched must never be consulted at all."""
+
+    _mock_routing(
+        monkeypatch,
+        RoutingDecision(
+            next_step="info", reason="specific tech, defer", candidate_shared_experience=True
+        ),
+        RoutingDecision(next_step="sched", reason="flip-flopped after the info decline"),
+    )
+    _mock_info(monkeypatch, decision="info_not_needed", draft_answer=None)
+
+    def _fail_if_consulted(history, now, offered_slots=None, previously_offered_slots=None):
+        raise AssertionError("sched must not be consulted once deferred this turn")
+
+    monkeypatch.setattr(graph.sched_advisor, "decide", _fail_if_consulted)
+    state = ConversationState()
+
+    result = graph.run_turn("I have three years' experience with Django and Flask.", state)
+
+    assert result["action"] != "schedule"
+    assert state.qualifying_info_shared is True
+
+
 def test_run_turn_respects_re_consult_guard_within_a_single_turn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

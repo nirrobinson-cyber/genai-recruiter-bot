@@ -154,6 +154,33 @@ def test_compound_reply_with_a_trailing_technology_mention_still_defers() -> Non
     assert routing.next_step != "sched"
 
 
+def test_run_turn_double_consult_does_not_escalate_after_deferring() -> None:
+    """Conversation 2 turn 3 pattern, replayed exactly as the real eval
+    harness does (empty state, no synthetic opener — tests/eval_replay.py's
+    sequential mode never adds the recruiter's turn-1 text to history at
+    all, it starts directly from the candidate's first message). This is
+    the "double-consult inconsistency" bug: the router correctly defers on
+    its first call (specific technology named, not yet time to schedule),
+    but a second same-turn re-consult (after the info advisor declines)
+    used to flip to "sched" anyway, contradicting its own first decision."""
+    state = ConversationState()
+
+    result = run_turn("I have three years' experience with Django and Flask.", state)
+
+    assert result["action"] != "schedule"
+
+
+def test_run_turn_double_consult_does_not_escalate_for_a_different_technology() -> None:
+    """Conversation 11 turn 3 pattern — same bug, a different named
+    technology (AWS instead of Django/Flask), confirming the fix
+    generalizes rather than being specific to one exact phrase."""
+    state = ConversationState()
+
+    result = run_turn("I have three years' experience with Pyhon and AWS.", state)
+
+    assert result["action"] != "schedule"
+
+
 def test_second_round_with_qualifying_info_armed_escalates_to_sched() -> None:
     """Once qualifying info was already flagged as shared on an earlier turn
     and no slots have been offered yet, the router should proactively
@@ -176,23 +203,22 @@ def test_second_round_with_qualifying_info_armed_escalates_to_sched() -> None:
     assert routing.next_step == "sched"
 
 
-@pytest.mark.xfail(
-    reason=(
-        "CORE-REV, deferred 2026-07-19: a deterministic same-turn guard was tried and reverted — it forced 'continue' "
-        "uniformly on this turn-shape, but full-dataset eval showed most gold=schedule conversations actually want "
-        "IMMEDIATE escalation here (schedule recall dropped 78.9%->31.6%), so blocking it was a net regression, not a "
-        "fix. The ground truth is genuinely inconsistent for this exact input across conversations (see CLAUDE.md) — "
-        "revisit with a richer signal, not a blanket rule."
-    ),
-    strict=False,
-)
 def test_run_turn_defers_escalation_to_the_next_turn_not_same_turn() -> None:
-    """Regression test for a same-turn leak: the maturity flag used to be
-    armed AND consumed within the same `run_turn` call whenever a same-turn
-    re-consult happened (info declines, then a second routing call already
-    saw the just-armed flag) — escalating to "schedule" in the very turn
-    experience was first mentioned, contradicting the intended "wait for
-    the next turn" design (see app/graph.py's `experience_shared_this_turn`)."""
+    """Regression test for a same-turn leak, fixed 2026-07-21 (the
+    "double-consult inconsistency" bug — see
+    test_run_turn_double_consult_does_not_escalate_after_deferring in this
+    file for the mocked-equivalent unit test). This was `xfail` from
+    2026-07-19 to 2026-07-21: an EARLIER attempt at this same problem used a
+    deterministic same-turn guard that forced "continue" uniformly on this
+    turn-shape regardless of context, which regressed full-dataset schedule
+    recall 78.9%->31.6% and was reverted (see CLAUDE.md) — that guard was
+    too blunt, blocking escalation even when a later turn's routing had
+    legitimately decided to escalate for a different, valid reason. The
+    actual fix is narrower: only suppress a same-turn flip to "sched" if
+    THIS turn's own routing already explicitly decided to defer for the
+    "wait one more exchange" reason (`app/graph.py`'s
+    `sched_deferred_this_turn`) — it doesn't touch escalation decided by a
+    genuinely later turn or a different routing path."""
     state = ConversationState()
     state.add_message(
         "assistant",
@@ -311,7 +337,13 @@ def test_vague_enthusiasm_after_offer_does_not_falsely_confirm_a_booking() -> No
     an arbitrary slot the candidate never actually picked)."""
     state = ConversationState()
     state.add_message("assistant", "Could you share a bit about your Python experience?")
-    state.add_message("user", "I have three years' experience with Django and Flask.")
+    # A real run_turn call, not a direct state.add_message injection: production
+    # code never appends a "user" message except inside run_turn itself, so
+    # injecting one directly creates back-to-back user turns with no assistant
+    # reply between them — a shape that can't occur in real usage and that
+    # confused the router's classification once the same-turn escalation-
+    # deferral fix (BUG A, 2026-07-21) was in place.
+    run_turn("I have three years' experience with Django and Flask.", state)
 
     first = run_turn("Can we schedule an interview?", state)
     assert first["action"] == "schedule"
@@ -332,7 +364,13 @@ def test_confirmation_matches_offered_slot_by_weekday_name() -> None:
     offered-slots prompt block is now annotated with the weekday name."""
     state = ConversationState()
     state.add_message("assistant", "Could you share a bit about your Python experience?")
-    state.add_message("user", "I have three years' experience with Django and Flask.")
+    # A real run_turn call, not a direct state.add_message injection: production
+    # code never appends a "user" message except inside run_turn itself, so
+    # injecting one directly creates back-to-back user turns with no assistant
+    # reply between them — a shape that can't occur in real usage and that
+    # confused the router's classification once the same-turn escalation-
+    # deferral fix (BUG A, 2026-07-21) was in place.
+    run_turn("I have three years' experience with Django and Flask.", state)
 
     first = run_turn("Can we schedule an interview?", state)
     assert first["action"] == "schedule"
@@ -353,7 +391,13 @@ def test_soft_decline_with_future_interest_does_not_trigger_exit() -> None:
     this time, not an opt-out."""
     state = ConversationState()
     state.add_message("assistant", "Could you share a bit about your Python experience?")
-    state.add_message("user", "I have three years' experience with Django and Flask.")
+    # A real run_turn call, not a direct state.add_message injection: production
+    # code never appends a "user" message except inside run_turn itself, so
+    # injecting one directly creates back-to-back user turns with no assistant
+    # reply between them — a shape that can't occur in real usage and that
+    # confused the router's classification once the same-turn escalation-
+    # deferral fix (BUG A, 2026-07-21) was in place.
+    run_turn("I have three years' experience with Django and Flask.", state)
 
     first = run_turn("Can we schedule an interview?", state)
     assert first["action"] == "schedule"

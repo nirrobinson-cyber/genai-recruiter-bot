@@ -258,6 +258,15 @@ def run_turn(
     # mid-loop, escalation could fire in the very same turn the info was
     # first mentioned, defeating that rule entirely.
     experience_shared_this_turn = False
+    # Same-turn consistency: once this turn's routing has already decided
+    # NOT to escalate to sched for the "wait one more exchange" reason (the
+    # candidate's first qualifying-experience reply named a specific new
+    # technology, or otherwise doesn't yet warrant scheduling), that
+    # decision must hold for the rest of THIS turn's consults — a second
+    # routing call (e.g. after an info decline gives the model more context)
+    # must not re-decide it and escalate anyway just because it now has more
+    # to go on. The underlying situation hasn't changed mid-turn.
+    sched_deferred_this_turn = False
 
     while state.consult_count < MAX_ADVISOR_CONSULTS:
         consultations_so_far = [
@@ -272,6 +281,15 @@ def run_turn(
         )
         if routing.candidate_shared_experience:
             experience_shared_this_turn = True
+        if sched_deferred_this_turn and routing.next_step == "sched":
+            break
+        if (
+            routing.candidate_shared_experience
+            and routing.next_step != "sched"
+            and not state.qualifying_info_shared
+            and not slots_already_offered
+        ):
+            sched_deferred_this_turn = True
         if routing.next_step == "respond":
             break
 
