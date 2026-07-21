@@ -206,3 +206,30 @@ rebuilt again, so today's live bookings weren't lost). Full suite re-run after: 
 plainly rather than continuing to carry them as open blockers. Actual Streamlit Cloud account
 connection remains the one GRB-063 sub-item that needs the user directly (GitHub push + Cloud
 account) — everything code-side is now in place for it to work when they do.
+
+## 2026-07-21 (cont. 3) — GRB-063: live deploy completed by the user, GRB-072's GitHub push done
+
+User installed GitHub CLI (`winget install --id GitHub.cli`), authenticated (`gh auth login`), and
+this repo now has a real GitHub remote for the first time this project (`git remote -v` had been
+empty since bootstrap) — `origin` → `https://github.com/nirrobinson-cyber/genai-recruiter-bot`,
+`main` and the `v1.0` tag both pushed.
+
+Deployed to Streamlit Community Cloud from that repo. Hit one transient build error on first
+attempt (`ModuleNotFoundError` for `pydantic_settings`, consistent with the known `chromadb`/
+`hnswlib` native-build-on-Cloud risk flagged in the deploy runbook) — resolved itself on a
+retry/redeploy without a packages.txt change, so left unaddressed rather than fixed speculatively.
+User confirmed the app is set to "public and searchable" and manually verified all four flows
+live: registration form, a real chat turn with a DB-verified bot reply, the dev trace panel,
+and Reset.
+
+**GRB-063 closed.** Live URL added to `README.md`'s "Live deployment" section (the old "not yet
+deployed" note removed, deploy runbook kept collapsed under a `<details>` for reference) and
+`docs/PROJECT_TASKS.md`'s GRB-063 row flipped to ✅. `README.md`'s "Current status" section
+refreshed to match (E6 now includes the live deploy, E7 effectively done bar screenshots/GIF).
+
+Remaining before this project can be called fully closed, all requiring the user directly (not
+something further code changes can resolve): demo screenshots/GIF (needs the now-live app, a real
+browser), a presentation decision (GRB-072's own AC calls for one; previously skipped for `v1.0`
+per user request — whether the course still requires it is the user's call), a final re-tag once
+those are done, the user's own review pass over commits since `v1.0`, and confirming the actual
+course submission format/deadline.

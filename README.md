@@ -178,9 +178,12 @@ or a different account is used).
 
 ## Live deployment (GRB-063)
 
-Not yet deployed — the Streamlit UI is fully built and verified locally, but the actual Streamlit
-Community Cloud connection needs your own GitHub + Streamlit account, so it can't be completed
-from this environment. Runbook to do it:
+**Live: https://genai-recruiter-bot-l3q65zqqp2u4d26wph2xly.streamlit.app/** — deployed on Streamlit
+Community Cloud, public and searchable. Verified live: registration form submits, a real chat turn
+returns a DB-verified bot reply, dev trace panel toggles, Reset works.
+
+<details>
+<summary>Deploy runbook (how this was set up, for reference/reproducibility)</summary>
 
 **1. Push the repo to GitHub.** Community Cloud deploys straight from a GitHub repo (public repo
 for the free tier; a linked private repo also works if your Streamlit account has GitHub App
@@ -225,6 +228,8 @@ they only slow down Cloud's build. Splitting into a slim `requirements.txt` (app
 `requirements-dev.txt` (eval/notebook) would shrink build time; not done here since it's a real
 but non-blocking optimization, not a deploy blocker.
 
+</details>
+
 ## Testing & lint
 
 ```bash
@@ -235,9 +240,12 @@ ruff check .
 
 ## Current status
 
-Epics E0–E2, E3, E4, E6 are done — E3 (fine-tuning) closed via its own documented-fallback
-acceptance criterion, since the real fine-tune job is blocked by OpenAI's platform deprecation
-(see the Evaluation section above), not by anything left undone here. E5 (evaluation) is done as
-an honest-gap-analysis outcome; E7 (this document) is in progress. See
-[`docs/PROJECT_TASKS.md`](docs/PROJECT_TASKS.md) §0 for the live per-task status table and
-[`docs/DEVLOG.md`](docs/DEVLOG.md) for the full session-by-session history.
+Epics E0–E4, E6 are done — E3 (fine-tuning) closed via its own documented-fallback acceptance
+criterion, since the real fine-tune job is blocked by OpenAI's platform deprecation (see the
+Evaluation section above), not by anything left undone here. E5 (evaluation) is done as an
+honest-gap-analysis outcome. E6 now includes a live public deployment (see "Live deployment"
+above). CORE-REV's numeric target is met; two narrow behavioral gaps are explicitly descoped for
+this submission (see "Known open items" above). E7 (this document + repo hygiene) is effectively
+done; the one item outside this environment's reach is demo screenshots/GIF, which need a real
+browser. See [`docs/PROJECT_TASKS.md`](docs/PROJECT_TASKS.md) §0 for the live per-task status
+table and [`docs/DEVLOG.md`](docs/DEVLOG.md) for the full session-by-session history.
