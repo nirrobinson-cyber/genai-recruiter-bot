@@ -11,6 +11,8 @@ jobs:
         with: {python-version: "3.12", cache: "pip"}
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Build embedding index
+        run: python -m app.modules.embedding.build_index
       - name: Ruff
         run: ruff check .
       - name: Pytest
