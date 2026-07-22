@@ -309,3 +309,29 @@ self-documentation would misrepresent the project's actual state. The decision t
 unimplemented is preserved as a deliberate choice, not confused with "couldn't find the bug." No
 app/prompt code changed in this session; `git status` clean, everything already committed/pushed
 before this entry.
+
+## 2026-07-22 — Info Advisor retrieval: query/document embedding-space mismatch (real bug, fixed)
+- User reported a live transcript where "which languages should I know?" got "I don't have the
+  specific details" instead of a real answer, despite the job-description PDF explicitly listing
+  Python plus HTML/CSS/JavaScript as a required chunk. Reproduced directly against the real index:
+  `retrieve_context` returned chunks 6/1/3/5, never chunk-4 (the one with the actual answer).
+- Root cause: `app/modules/info_advisor/retriever.py::retrieve_context` always embedded the query
+  with a deterministic 32-dim hash function, while `app/modules/embedding/build_index.py` embeds
+  *documents* with real OpenAI embeddings (`text-embedding-3-small`, 1536-dim) whenever an API key
+  is present. Query and document vectors lived in unrelated, differently-dimensioned vector
+  spaces, so nearest-neighbor search was effectively meaningless — this has likely never worked as
+  intended, not a recent regression (only one commit, `47da09b`, touches either file). Some
+  queries "worked" by luck against the 7-chunk corpus; this one didn't.
+- Fix: added `retriever._embed_query`, mirroring `build_index._embed_texts` — real OpenAI
+  embedding when `settings.openai_api_key` is set, hash fallback otherwise/on error — so query and
+  document embeddings are always produced the same way.
+- Also discovered the *persisted* `data/chroma` index itself had been built with the 32-dim hash
+  fallback (not real embeddings) even though the API key works fine now — likely built before a
+  working key was in place, never rebuilt since. Rebuilt via
+  `python -m app.modules.embedding.build_index`; confirmed live afterward that chunk-4 is now
+  retrieved and the Info Advisor gives a correct, grounded answer citing Python/Django/Flask/
+  Pyramid/SQL/NoSQL/HTML/CSS/JavaScript/AWS/GCP/Azure.
+- Added `tests/test_retriever.py` (4 cases, mocked OpenAI/chromadb, zero real API calls): OpenAI
+  path used when a key is present, hash fallback when no key, hash fallback on OpenAI error, and
+  `retrieve_context` actually passes `_embed_query`'s result (not the raw hash) into the Chroma
+  query. Full suite: 127 passed, 19 real-API deselected. `ruff check .` / `ruff format .` clean.

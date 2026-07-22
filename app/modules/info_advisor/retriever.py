@@ -14,6 +14,11 @@ try:
 except ImportError:  # pragma: no cover - optional dependency fallback
     chromadb = None
 
+try:
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - optional dependency fallback
+    OpenAI = None
+
 
 def _hash_query(query: str, dimensions: int = 32) -> list[float]:
     """Create a deterministic embedding fallback for local/offline retrieval."""
@@ -28,6 +33,24 @@ def _hash_query(query: str, dimensions: int = 32) -> list[float]:
     return vector
 
 
+def _embed_query(query: str, model: str) -> list[float]:
+    """Embed the query the same way build_index embeds documents (real OpenAI when
+    possible), so query and document vectors live in the same space. Falling back to
+    the hash embedding here while documents were embedded with OpenAI would put the
+    query and documents in unrelated vector spaces, making similarity search meaningless."""
+
+    settings = get_settings()
+    if OpenAI is not None and settings.openai_api_key:
+        try:
+            client = OpenAI(api_key=settings.openai_api_key)
+            response = client.embeddings.create(model=model, input=[query])
+            return response.data[0].embedding
+        except Exception:
+            pass
+
+    return _hash_query(query)
+
+
 def retrieve_context(question: str, top_k: int | None = None) -> dict[str, Any] | None:
     """Retrieve the most relevant chunks for a question from the local index."""
 
@@ -40,7 +63,8 @@ def retrieve_context(question: str, top_k: int | None = None) -> dict[str, Any] 
         try:
             client = chromadb.PersistentClient(path=str(persist_dir))
             collection = client.get_collection(name=collection_name)
-            results = collection.query(query_embeddings=[_hash_query(question)], n_results=top_k)
+            query_embedding = _embed_query(question, settings.embedding_model)
+            results = collection.query(query_embeddings=[query_embedding], n_results=top_k)
             documents = results.get("documents", [[]])[0]
             ids = results.get("ids", [[]])[0]
             return {
