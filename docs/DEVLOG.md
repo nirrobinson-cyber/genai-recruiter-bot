@@ -335,3 +335,40 @@ before this entry.
   path used when a key is present, hash fallback when no key, hash fallback on OpenAI error, and
   `retrieve_context` actually passes `_embed_query`'s result (not the raw hash) into the Chroma
   query. Full suite: 127 passed, 19 real-API deselected. `ruff check .` / `ruff format .` clean.
+
+## 2026-07-22 (cont.) — CI green again after 3 real, stacked bugs found via the actual failure log
+- User reported CI failing "in 9s" on every push and asked me to look at the real log rather than
+  assume. Pulled `gh run view --log-failed` on the latest failure instead of guessing from the
+  workflow file alone — glad I did, the initial hypothesis (missing deps) was only one of three
+  real bugs, all Epic-E0 bootstrap leftovers never updated as the project grew:
+  1. `ci.yml` ran `pip install ruff pytest pydantic pydantic-settings python-dotenv` — unpinned
+     `ruff`, so CI silently drifted to 0.15.22 vs. the locally-pinned 0.12.5 in `requirements.txt`,
+     picking up a new default rule (`UP047`) that flagged `get_structured_output`'s TypeVar-based
+     generic and failed the lint step before pytest ever ran. Separately, this lite list also never
+     included `openai`/`chromadb`/`langchain`/`streamlit` — even with ruff fixed, pytest would have
+     failed at collection (`app/llm_client.py` imports `openai` unconditionally). Fixed by
+     installing from `requirements.txt` instead — pins ruff correctly and supplies everything the
+     app/tests actually import.
+  2. That fix surfaced a second, previously-masked bug: CI pinned `python-version: "3.11"`, but
+     `pyproject.toml` declares `requires-python = ">=3.12"` because `app/llm_client.py:41` uses PEP
+     695 generic function syntax (`def cached_parse[T: BaseModel](...)`), a 3.12+-only feature.
+     Ruff doesn't parse function-body syntax deeply enough to flag this under 3.11, so lint passed
+     but every test module importing `llm_client` hit a hard `SyntaxError` at collection. Fixed by
+     bumping CI to `python-version: "3.12"`.
+  3. With both of those fixed, exactly one real test failure remained:
+     `tests/test_info_retriever.py::test_retrieve_context_returns_relevant_chunks` — a real,
+     non-mocked call into `retrieve_context` — got `[]`, because `data/chroma` is gitignored/
+     rebuildable (spec §12) and a fresh CI checkout has no index built at all. No
+     `OPENAI_API_KEY` secret is configured in CI, so the fix is a `Build embedding index` step
+     running `python -m app.modules.embedding.build_index` before tests, which builds
+     consistently with the hash-embedding fallback on both the document and query side (same
+     as any contributor's first local run without a key yet) — not a special-case, just the
+     documented Phase 1 setup step CI had never run.
+- Each fix was verified against the *actual* GitHub Actions run (`gh run watch --exit-status`),
+  not assumed from reasoning alone — went from "fails in ~10s at lint" → "fails in ~1m26s at
+  collection" → "fails in ~1m17s with 1 real test failure, 126 passed" → fully green
+  (`quality` job, all steps ✓) in ~1m24s. First fully green CI run since at least 2026-07-21.
+- Also found in passing: `origin/main` had one commit (`ffebb70`, "Added Dev Container Folder",
+  adding `.devcontainer/devcontainer.json`) pushed directly via the GitHub web UI that wasn't in
+  the local history yet — confirmed it was the user's own commit and a clean, non-conflicting
+  rebase before pushing the CI fixes on top.
