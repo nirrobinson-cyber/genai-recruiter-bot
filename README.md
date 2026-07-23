@@ -1,5 +1,7 @@
 # GenAI Recruiter Bot
 
+**Submitted by:** Nir Robinson — 037035847
+
 A multi-agent SMS-style recruiting chatbot for a Python Developer position. A **Main Agent**
 orchestrates three specialist advisors — **Exit** (should the conversation end?), **Sched**
 (should we offer/confirm an interview time?), **Info** (does the candidate need role/company
