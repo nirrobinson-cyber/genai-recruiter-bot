@@ -39,7 +39,98 @@ from app.modules.embedding.build_index import build_index  # noqa: E402
 from app.modules.scheduling.db_setup import DB_PATH, build_database  # noqa: E402
 from app.state import ConversationState  # noqa: E402
 
-st.set_page_config(page_title="GenAI Recruiter Bot", page_icon="💬")
+# Generic, company-agnostic palette — not tied to any employer's brand.
+# A modern indigo-to-cyan pair plus neutral slate text/greys.
+BRAND_PRIMARY = "#4F46E5"
+BRAND_DEEP = "#4338CA"
+BRAND_ACCENT = "#06B6D4"
+BRAND_TEXT = "#1F2937"
+BRAND_MUTED = "#64748B"
+
+st.set_page_config(page_title="Python Developer — Recruiting Chat", page_icon="🐍")
+
+
+def _inject_brand_css() -> None:
+    st.markdown(
+        f"""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"],
+        button, input, textarea {{
+            font-family: 'Poppins', sans-serif;
+        }}
+
+        div.stButton > button, div.stFormSubmitButton > button {{
+            background-color: {BRAND_PRIMARY};
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.5rem 1.25rem;
+            transition: background-color 0.15s ease;
+        }}
+        div.stButton > button:hover, div.stFormSubmitButton > button:hover {{
+            background-color: {BRAND_DEEP};
+            color: #fff;
+        }}
+
+        [data-testid="stChatMessage"] {{
+            border-radius: 14px;
+            border: 1px solid #e6ebf0;
+            background-color: #ffffff;
+        }}
+
+        [data-testid="stForm"] {{
+            background: #ffffff;
+            border: 1px solid #e6ebf0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+        }}
+
+        .app-badge {{
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }}
+        .app-badge-continue {{ background: #EEF2FF; color: {BRAND_PRIMARY}; }}
+        .app-badge-schedule {{ background: #FFF4D6; color: #A9740A; }}
+        .app-badge-end {{ background: #FBE3E3; color: #C23B3B; }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_header() -> None:
+    col_mark, col_title = st.columns([1, 6], vertical_alignment="center")
+    with col_mark:
+        st.markdown(
+            f"<div style='width:48px;height:48px;border-radius:14px;"
+            f"background:linear-gradient(135deg,{BRAND_PRIMARY},{BRAND_ACCENT});"
+            f"display:flex;align-items:center;justify-content:center;font-size:24px;"
+            f"box-shadow:0 2px 8px rgba(79,70,229,0.25);'>🐍</div>",
+            unsafe_allow_html=True,
+        )
+    with col_title:
+        st.markdown(
+            f"<div style='margin:0;'>"
+            f"<h1 style='margin:0;font-size:1.5rem;font-weight:600;color:{BRAND_TEXT};'>"
+            f"Python Developer — Recruiting Chat</h1>"
+            f"<p style='margin:0;color:{BRAND_MUTED};font-size:0.85rem;'>"
+            f"AI-powered recruiting assistant</p>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    st.markdown(
+        f"<hr style='margin-top:0.5rem;margin-bottom:1rem;border:none;"
+        f"border-top:3px solid {BRAND_PRIMARY};'>",
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_resource
@@ -86,7 +177,7 @@ def _reset() -> None:
 
 
 def _render_registration_form() -> None:
-    st.title("Python Developer — Recruiting Chat")
+    _render_header()
     st.write("A few details before we start (per the flowchart's registration entry point).")
     with st.form("registration_form"):
         full_name = st.text_input("Full name")
@@ -115,13 +206,12 @@ def _render_registration_form() -> None:
 
 
 def _action_badge(action: str) -> str:
-    return {"continue": "🟦 continue", "schedule": "🟨 schedule", "end": "🟥 end"}.get(
-        action, action
-    )
+    label = {"continue": "continue", "schedule": "schedule", "end": "end"}.get(action, action)
+    return f'<span class="app-badge app-badge-{action}">{label}</span>'
 
 
 def _render_chat(state: ConversationState) -> None:
-    st.title("Python Developer — Recruiting Chat")
+    _render_header()
 
     # advisor_outputs has exactly one entry per assistant turn EXCEPT the
     # synthetic opening greeting added at registration, which has no
@@ -137,7 +227,10 @@ def _render_chat(state: ConversationState) -> None:
             if turn["role"] == "assistant":
                 output_index = assistant_seen - turns_without_output
                 if st.session_state.dev_mode and output_index >= 0:
-                    st.caption(_action_badge(state.advisor_outputs[output_index]["action"]))
+                    st.markdown(
+                        _action_badge(state.advisor_outputs[output_index]["action"]),
+                        unsafe_allow_html=True,
+                    )
                 assistant_seen += 1
 
     last_action = state.advisor_outputs[-1]["action"] if state.advisor_outputs else None
@@ -187,6 +280,7 @@ def _render_sidebar(state: ConversationState | None) -> None:
 
 def main() -> None:
     get_settings()  # fail fast on missing config, same as `python -m app.main --check-config`
+    _inject_brand_css()
     _init_state()
     _render_sidebar(st.session_state.conv_state)
 

@@ -1,0 +1,8 @@
+# Generic, company-agnostic theme (indigo/cyan) — kept in sync with the
+# BRAND_* constants in streamlit_app/streamlit_main.py.
+[theme]
+primaryColor = "#4F46E5"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+textColor = "#1F2937"
+font = "sans serif"
