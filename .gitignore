@@ -24,6 +24,12 @@ data/fine_tuning/
 logs/
 *.log
 
+# Local tooling / workspace state
+.claude/
+.cache/
+.streamlit/
+.vscode/settings.json
+TO_SUBMIT/
+
 # OS / IDE
 .DS_Store
-.vscode/settings.json
