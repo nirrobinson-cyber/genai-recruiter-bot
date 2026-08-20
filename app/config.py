@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     max_advisor_consults: int = 3  # guard R-1
     retrieval_top_k: int = 4
 
+    # --- Turn engine (GRB-041 dual-implementation toggle) ---
+    # "legacy" = app.graph (plain-Python control flow, default);
+    # "langgraph" = app.graph_langgraph (langgraph StateGraph, spec §3.3).
+    # Both share the exact same run_turn contract — see app/turn_engine.py.
+    turn_engine: str = "legacy"
+
     # --- Paths ---
     sqlite_db_path: str = "data/tech.db"
     chroma_persist_dir: str = "data/chroma"

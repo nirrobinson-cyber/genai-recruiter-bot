@@ -7,9 +7,10 @@ manually:
     python -m tests.verify_canonical_flows
 
 Each flow is a fresh conversation exercised against the real graph
-(`app.graph.run_turn`), asserting the resulting action label and printing the
-per-advisor trace (GRB-043) for a human to eyeball. Exits non-zero if any
-flow's assertion fails.
+(`app.turn_engine.run_turn`, dispatching to `app.graph` or
+`app.graph_langgraph` per `settings.turn_engine`), asserting the resulting
+action label and printing the per-advisor trace (GRB-043) for a human to
+eyeball. Exits non-zero if any flow's assertion fails.
 """
 
 from __future__ import annotations
@@ -17,8 +18,8 @@ from __future__ import annotations
 import sys
 
 from app.config import get_settings
-from app.graph import run_turn
 from app.state import ConversationState
+from app.turn_engine import run_turn
 
 Flow = tuple[str, list[str], str]
 

@@ -39,8 +39,8 @@ from pathlib import Path
 from typing import Any
 
 from app import graph
-from app.graph import run_turn
 from app.state import ConversationState
+from app.turn_engine import run_turn
 
 CONVERSATIONS_PATH = Path("data/raw/sms_conversations.json")
 

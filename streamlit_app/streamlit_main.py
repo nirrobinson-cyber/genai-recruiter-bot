@@ -1,8 +1,10 @@
 """Streamlit PoC (spec §8, Epic E6): registration form -> chat UI -> dev trace panel.
 
 Zero decision logic lives here — every turn goes through the exact same
-`app.graph.run_turn` entry point the terminal loop (`app/main.py`) uses.
-This module only renders `ConversationState`/`run_turn` output.
+`app.turn_engine.run_turn` entry point the terminal loop (`app/main.py`)
+uses (dispatches to `app.graph` or `app.graph_langgraph` per
+`settings.turn_engine`, GRB-041). This module only renders
+`ConversationState`/`run_turn` output.
 """
 
 from __future__ import annotations
@@ -34,10 +36,10 @@ for _key in ("OPENAI_API_KEY", "DEMO_NOW_OVERRIDE"):
         os.environ[_key] = str(_secrets[_key])
 
 from app.config import get_settings  # noqa: E402
-from app.graph import run_turn  # noqa: E402
 from app.modules.embedding.build_index import build_index  # noqa: E402
 from app.modules.scheduling.db_setup import DB_PATH, build_database  # noqa: E402
 from app.state import ConversationState  # noqa: E402
+from app.turn_engine import run_turn  # noqa: E402
 
 # Generic, company-agnostic palette — not tied to any employer's brand.
 # A modern indigo-to-cyan pair plus neutral slate text/greys.

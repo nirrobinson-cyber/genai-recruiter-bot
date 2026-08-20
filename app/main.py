@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 
 from app.config import get_settings, setup_logging
-from app.graph import run_turn
 from app.state import ConversationState
+from app.turn_engine import run_turn
 
 
 def build_parser() -> argparse.ArgumentParser:
