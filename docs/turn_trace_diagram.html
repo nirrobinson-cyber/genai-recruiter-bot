@@ -1,0 +1,636 @@
+<title>Turn Trace</title>
+<style>
+  :root {
+    --bg: #eef1f2;
+    --panel: #ffffff;
+    --panel-2: #e4e9eb;
+    --ink: #1b2430;
+    --ink-soft: #445064;
+    --muted: #6b7686;
+    --line: #3c4a5c;
+    --line-soft: #aeb8c2;
+    --accent: #c9720a;
+    --accent-soft: #fcead2;
+    --accent-ink: #7a4405;
+    --store: #0f6e63;
+    --store-soft: #dceeec;
+    --end: #8c3a4b;
+    --end-soft: #f5e1e5;
+    --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, "Liberation Mono", monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10151c;
+      --panel: #161d27;
+      --panel-2: #1d2530;
+      --ink: #e7ecef;
+      --ink-soft: #c3cbd3;
+      --muted: #8592a1;
+      --line: #8291a3;
+      --line-soft: #3c4a5c;
+      --accent: #f2a93c;
+      --accent-soft: #3a2a10;
+      --accent-ink: #f6c169;
+      --store: #4fcbb8;
+      --store-soft: #123a34;
+      --end: #e08a9b;
+      --end-soft: #3a1a21;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10151c;
+    --panel: #161d27;
+    --panel-2: #1d2530;
+    --ink: #e7ecef;
+    --ink-soft: #c3cbd3;
+    --muted: #8592a1;
+    --line: #8291a3;
+    --line-soft: #3c4a5c;
+    --accent: #f2a93c;
+    --accent-soft: #3a2a10;
+    --accent-ink: #f6c169;
+    --store: #4fcbb8;
+    --store-soft: #123a34;
+    --end: #e08a9b;
+    --end-soft: #3a1a21;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    padding: 32px 20px 64px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1160px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+  /* ---------- header ---------- */
+  header { display: flex; flex-direction: column; gap: 6px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  h1 {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 38px);
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    direction: rtl;
+    text-align: right;
+    color: var(--ink-soft);
+    font-size: 16px;
+    max-width: 65ch;
+    margin: 0;
+  }
+  .provenance {
+    direction: rtl;
+    text-align: right;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .provenance code {
+    font-family: var(--font-mono);
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  /* ---------- panel shell ---------- */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-2);
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .panel h2 {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  figure { margin: 0; }
+  figcaption {
+    direction: rtl;
+    text-align: right;
+    font-size: 13.5px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .diagram-scroll { overflow-x: auto; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font-family: var(--font-mono); fill: var(--ink); }
+  svg .label-sub { fill: var(--ink-soft); }
+  svg .edge-label { fill: var(--muted); font-size: 10.5px; }
+  svg line, svg path.edge-path { stroke: var(--line-soft); stroke-width: 1.6; fill: none; }
+  svg .shape { stroke: var(--line); stroke-width: 1.6; fill: var(--panel-2); }
+  svg .shape.store { fill: var(--store-soft); }
+  svg .shape.terminator { fill: var(--panel-2); }
+  svg .ghost .shape { fill: none; stroke: var(--line-soft); stroke-dasharray: 4 4; }
+  svg .ghost text { fill: var(--muted); }
+
+  /* node / edge dynamic states */
+  .node.visited .shape { stroke: var(--accent); stroke-width: 2; fill: var(--accent-soft); }
+  .node.visited text { fill: var(--accent-ink); }
+  .node.current .shape { stroke: var(--accent); stroke-width: 2.6; fill: var(--accent-soft); }
+  .edge.visited line, .edge.visited path.edge-path { stroke: var(--accent); stroke-width: 2.4; }
+  .edge.current line, .edge.current path.edge-path {
+    stroke: var(--accent); stroke-width: 2.8;
+    stroke-dasharray: 7 6;
+    animation: flow 0.7s linear infinite;
+  }
+  @keyframes flow { to { stroke-dashoffset: -26; } }
+  @media (prefers-reduced-motion: reduce) {
+    .edge.current line, .edge.current path.edge-path { animation: none; }
+  }
+  .node.visited.store .shape { stroke: var(--store); fill: var(--store-soft); }
+  .node.visited.store text { fill: var(--store); }
+  .node.visited.terminator.end .shape { stroke: var(--end); fill: var(--end-soft); }
+  .node.visited.terminator.end text { fill: var(--end); }
+
+  /* ---------- system map ---------- */
+  svg .hub .shape { fill: var(--panel-2); stroke: var(--line); stroke-width: 1.8; }
+
+  /* ---------- legend ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12.5px; color: var(--muted); }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .legend-swatch { width: 22px; height: 14px; flex-shrink: 0; }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-2);
+    background: var(--panel);
+    color: var(--ink-soft);
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--line-soft); color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tab[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .transport { display: flex; gap: 8px; margin-inline-start: auto; }
+  .transport button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .transport button.primary:hover { opacity: 0.9; }
+
+  /* ---------- narration + meter ---------- */
+  .stage-lower { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; margin-top: 16px; }
+  .narration {
+    direction: rtl;
+    text-align: right;
+    font-size: 15px;
+    color: var(--ink);
+    min-height: 44px;
+  }
+  .tag-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--panel-2);
+    color: var(--ink-soft);
+    border-radius: 5px;
+    padding: 1px 7px;
+    margin-inline-start: 8px;
+  }
+  .meter { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .meter-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .meter-dots { display: flex; gap: 5px; }
+  .meter-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--panel-2); border: 1.5px solid var(--line-soft); }
+  .meter-dot.filled { background: var(--accent); border-color: var(--accent); }
+  .action-readout { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .action-pill { padding: 2px 9px; border-radius: 6px; font-weight: 600; }
+  .action-pill.continue { background: var(--panel-2); color: var(--ink-soft); }
+  .action-pill.schedule { background: var(--store-soft); color: var(--store); }
+  .action-pill.end { background: var(--end-soft); color: var(--end); }
+
+  /* ---------- rules reference ---------- */
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; direction: rtl; }
+  .rule { border-inline-start: 3px solid var(--line-soft); padding-inline-start: 12px; }
+  .rule .rid { font-family: var(--font-mono); font-size: 12px; color: var(--accent-ink); }
+  .rule p { margin: 3px 0 0; font-size: 13.5px; color: var(--ink-soft); }
+
+  footer {
+    direction: rtl;
+    text-align: right;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">GenAI Recruiter Bot &mdash; system trace</span>
+    <h1>Turn Trace</h1>
+    <p class="subtitle">איך הודעה אחת של מועמד זזה במערכת: מי מנתב אליה, מתי נבדק DB בפועל, ואיזה כלל עוצר אותה מלנחש.</p>
+    <p class="provenance">מבוסס ישירות על חוזה ה-turn הפורמלי של הפרויקט &mdash; <code>docs/one_turn_flowchart.json</code> &mdash; לא איור מהדמיון; אותם node id-ים ואותם תנאים.</p>
+  </header>
+
+  <!-- ============ SYSTEM MAP ============ -->
+  <section class="panel">
+    <h2>System map &mdash; who talks to whom</h2>
+    <figure>
+      <div class="diagram-scroll">
+        <svg viewBox="0 0 920 460" role="img" aria-label="Main Agent is the only component that talks to the candidate; it routes to one of three advisors, each receiving the full chat history and returning only a verdict; Sched Advisor is the only one that touches SQLite, Info Advisor the only one that touches Chroma.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--line-soft)"></path>
+            </marker>
+          </defs>
+
+          <!-- User -->
+          <g class="node">
+            <rect class="shape terminator" x="370" y="18" width="180" height="42" rx="21"></rect>
+            <text x="460" y="44" text-anchor="middle" font-size="13">Candidate</text>
+          </g>
+
+          <!-- Main Agent hub -->
+          <g class="node hub">
+            <rect class="shape" x="330" y="138" width="260" height="66" rx="10"></rect>
+            <text x="460" y="166" text-anchor="middle" font-size="13.5" font-weight="600">Main Agent</text>
+            <text class="label-sub" x="460" y="184" text-anchor="middle" font-size="10.5">only actor that ever replies (R-4)</text>
+          </g>
+
+          <!-- Advisors -->
+          <g class="node"><rect class="shape" x="70" y="278" width="170" height="58" rx="8"></rect>
+            <text x="155" y="303" text-anchor="middle" font-size="12.5">Exit Advisor</text>
+            <text class="label-sub" x="155" y="319" text-anchor="middle" font-size="10">end / don&#39;t end</text></g>
+          <g class="node"><rect class="shape" x="375" y="278" width="170" height="58" rx="8"></rect>
+            <text x="460" y="303" text-anchor="middle" font-size="12.5">Sched Advisor</text>
+            <text class="label-sub" x="460" y="319" text-anchor="middle" font-size="10">sched / don&#39;t sched</text></g>
+          <g class="node"><rect class="shape" x="680" y="278" width="170" height="58" rx="8"></rect>
+            <text x="765" y="303" text-anchor="middle" font-size="12.5">Info Advisor</text>
+            <text class="label-sub" x="765" y="319" text-anchor="middle" font-size="10">info needed / not</text></g>
+
+          <!-- Data stores -->
+          <g class="node store"><rect class="shape store" x="375" y="392" width="170" height="52" rx="6"></rect>
+            <ellipse cx="460" cy="392" rx="85" ry="7" fill="var(--store-soft)" stroke="var(--line)" stroke-width="1.2"></ellipse>
+            <text x="460" y="418" text-anchor="middle" font-size="11.5">SQLite &middot; Schedule</text></g>
+          <g class="node store"><rect class="shape store" x="680" y="392" width="170" height="52" rx="6"></rect>
+            <ellipse cx="765" cy="392" rx="85" ry="7" fill="var(--store-soft)" stroke="var(--line)" stroke-width="1.2"></ellipse>
+            <text x="765" y="418" text-anchor="middle" font-size="11.5">Chroma &middot; job_description</text></g>
+          <text class="edge-label" x="155" y="418" text-anchor="middle" font-style="italic">no data store touched (R-3)</text>
+
+          <!-- Edges -->
+          <line x1="460" y1="60" x2="460" y2="137" marker-end="url(#arrow)" marker-start="url(#arrow)"></line>
+          <text class="edge-label" x="468" y="92" text-anchor="start">message &#8594;</text>
+          <text class="edge-label" x="468" y="110" text-anchor="start">&#8592; reply: continue/schedule/end (R-5)</text>
+
+          <line x1="392" y1="204" x2="165" y2="277" marker-end="url(#arrow)" marker-start="url(#arrow)"></line>
+          <text class="edge-label" x="196" y="234" text-anchor="middle">history (R-2)</text>
+          <text class="edge-label" x="196" y="248" text-anchor="middle">verdict only</text>
+
+          <line x1="460" y1="204" x2="460" y2="277" marker-end="url(#arrow)" marker-start="url(#arrow)"></line>
+          <text class="edge-label" x="500" y="238" text-anchor="start">history (R-2)</text>
+          <text class="edge-label" x="500" y="253" text-anchor="start">verdict only</text>
+
+          <line x1="528" y1="204" x2="758" y2="277" marker-end="url(#arrow)" marker-start="url(#arrow)"></line>
+          <text class="edge-label" x="700" y="234" text-anchor="middle">history (R-2)</text>
+          <text class="edge-label" x="700" y="248" text-anchor="middle">verdict only</text>
+
+          <line x1="460" y1="336" x2="460" y2="391" marker-end="url(#arrow)"></line>
+          <text class="edge-label" x="468" y="368" text-anchor="start">S-3: available=1?</text>
+
+          <line x1="765" y1="336" x2="765" y2="391" marker-end="url(#arrow)"></line>
+          <text class="edge-label" x="773" y="368" text-anchor="start">R-3: retrieve chunks</text>
+        </svg>
+      </div>
+      <figcaption>המבנה הקבוע: המועמד מדבר רק עם Main Agent; היועצים מקבלים תמיד היסטוריה מלאה ומחזירים רק verdict; רק Sched נוגע ב-SQLite, רק Info נוגע ב-Chroma &mdash; אף פעם לא ספקולטיבית.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ TURN FLOW ============ -->
+  <section class="panel">
+    <h2>One turn, traced</h2>
+
+    <div class="controls">
+      <div class="tabs" id="tabs" role="tablist" aria-label="scenario"></div>
+      <div class="transport">
+        <button id="stepBtn">Step &#8594;</button>
+        <button id="playBtn" class="primary">Play</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <figure>
+      <div class="diagram-scroll">
+        <svg id="flowSvg" viewBox="0 0 1160 750" role="img" aria-label="A candidate message enters the Main Agent's router, which sends it to one advisor at a time; that advisor may touch its one allowed data store; the result converges back at the Main Agent, which either consults another advisor (up to three per turn) or sends the single reply.">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--line-soft)"></path>
+            </marker>
+          </defs>
+
+          <!-- static connective lines (all use class edge + data-id, arrowheads) -->
+          <g id="edges"></g>
+          <!-- nodes -->
+          <g id="nodes"></g>
+        </svg>
+      </div>
+      <figcaption id="figcap">בחרו תרחיש ולחצו Play, או Step כדי להתקדם שלב-שלב תוך כדי הצגה.</figcaption>
+    </figure>
+
+    <div class="stage-lower">
+      <div class="narration" id="narration">בחרו תרחיש למעלה כדי להתחיל.</div>
+      <div class="meter">
+        <span class="meter-label">consults this turn (&#8804;3, guard R-1)</span>
+        <div class="meter-dots" id="meterDots"><span class="meter-dot"></span><span class="meter-dot"></span><span class="meter-dot"></span></div>
+        <span class="action-readout">action: <span class="action-pill continue" id="actionPill">&mdash;</span></span>
+      </div>
+    </div>
+
+    <div class="legend" style="margin-top:18px;">
+      <span class="legend-item"><svg class="legend-swatch" viewBox="0 0 22 14"><rect x="1" y="1" width="20" height="12" rx="6" fill="var(--panel-2)" stroke="var(--line)"></rect></svg> start / reply</span>
+      <span class="legend-item"><svg class="legend-swatch" viewBox="0 0 22 14"><polygon points="11,1 21,7 11,13 1,7" fill="var(--panel-2)" stroke="var(--line)"></polygon></svg> decision</span>
+      <span class="legend-item"><svg class="legend-swatch" viewBox="0 0 22 14"><rect x="1" y="3" width="20" height="9" fill="var(--store-soft)" stroke="var(--line)"></rect><ellipse cx="11" cy="3" rx="10" ry="2.4" fill="var(--store-soft)" stroke="var(--line)"></ellipse></svg> data store</span>
+      <span class="legend-item"><svg class="legend-swatch" viewBox="0 0 22 14"><rect x="1" y="3" width="20" height="9" fill="none" stroke="var(--line-soft)" stroke-dasharray="3 3"></rect></svg> not touched this path</span>
+    </div>
+  </section>
+
+  <!-- ============ RULES REFERENCE ============ -->
+  <section class="panel">
+    <h2>Rules referenced above</h2>
+    <div class="rules">
+      <div class="rule"><span class="rid">R-1</span><p>עד 3 התייעצויות יועצים בתור אחד; אם נגמר &mdash; ברירת מחדל continue + שאלת הבהרה.</p></div>
+      <div class="rule"><span class="rid">R-2</span><p>כל יועץ מקבל את היסטוריית הצ&#39;אט המלאה, אף פעם לא סיכום.</p></div>
+      <div class="rule"><span class="rid">R-3</span><p>SQL נשאל רק אם Sched קבע <code style="font-family:var(--font-mono)">sched</code>; Chroma רק אם Info קבע <code style="font-family:var(--font-mono)">info_needed</code>.</p></div>
+      <div class="rule"><span class="rid">R-4</span><p>היועצים אף פעם לא פונים למועמד בעצמם &mdash; רק Main Agent.</p></div>
+      <div class="rule"><span class="rid">R-5</span><p>כל תור יוצא נושא label פעולה יחיד: continue / schedule / end.</p></div>
+      <div class="rule"><span class="rid">S-3</span><p>משבצת ראיון מוצעת רק אם אומתה <code style="font-family:var(--font-mono)">available=1</code> ב-DB באותו תור ממש.</p></div>
+    </div>
+  </section>
+
+  <footer>נבנה כקובץ עצמאי &mdash; <code style="font-family:var(--font-mono)">docs/turn_trace_diagram.html</code> &mdash; לא תלוי בשרת, אפשר לפתוח ישירות בדפדפן להצגה.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var NODES = [
+    { id: "n_input", kind: "terminator", x: 460, y: 20, w: 240, h: 44, rx: 22, label: "Candidate message", sub: "SMS-style chat turn" },
+    { id: "n_route", kind: "diamond", cx: 580, cy: 138, hw: 110, hh: 44, label: "Main Agent", sub: "route to advisor" },
+    { id: "n_exit", kind: "diamond", cx: 160, cy: 296, hw: 95, hh: 42, label: "Exit Advisor", sub: "end / don't end" },
+    { id: "n_sched", kind: "diamond", cx: 580, cy: 296, hw: 95, hh: 42, label: "Sched Advisor", sub: "sched / don't sched" },
+    { id: "n_info", kind: "diamond", cx: 1000, cy: 296, hw: 95, hh: 42, label: "Info Advisor", sub: "info needed / not" },
+    { id: "n_exitnote", kind: "ghost", x: 65, y: 406, w: 190, h: 44, label: "no data store", sub: "touched (R-3)" },
+    { id: "n_sqlstore", kind: "store", x: 485, y: 396, w: 190, h: 56, label: "SQLite · Schedule", sub: "available = 1 ?" },
+    { id: "n_chromastore", kind: "store", x: 905, y: 396, w: 190, h: 56, label: "Chroma · job_description", sub: "retrieve chunks" },
+    { id: "n_converge", kind: "diamond", cx: 580, cy: 556, hw: 130, hh: 48, label: "Main Agent", sub: "reply, or consult again?" },
+    { id: "n_output", kind: "terminator", x: 460, y: 666, w: 240, h: 48, rx: 24, label: "Reply to candidate", sub: "single action label" }
+  ];
+
+  var EDGES = [
+    { id: "e_input_route", type: "line", x1: 580, y1: 64, x2: 580, y2: 94 },
+    { id: "e_route_exit", type: "line", x1: 540, y1: 172, x2: 190, y2: 260, label: "exit-ish" },
+    { id: "e_route_sched", type: "line", x1: 580, y1: 182, x2: 580, y2: 254 },
+    { id: "e_route_info", type: "line", x1: 620, y1: 172, x2: 970, y2: 260, label: "info question" },
+    { id: "e_exit_converge", type: "line", x1: 175, y1: 335, x2: 468, y2: 542, label: "verdict" },
+    { id: "e_sched_store", type: "line", x1: 580, y1: 338, x2: 580, y2: 396, label: "sched →" },
+    { id: "e_store_converge_sql", type: "line", x1: 580, y1: 452, x2: 580, y2: 508, label: "verified slots" },
+    { id: "e_sched_bypass", type: "path", d: "M580,338 Q478,447 460,542", label: "don't sched", lx: 478, ly: 443 },
+    { id: "e_info_store", type: "line", x1: 1000, y1: 338, x2: 1000, y2: 396, label: "needed →" },
+    { id: "e_infostore_converge", type: "line", x1: 960, y1: 452, x2: 700, y2: 542, label: "chunks" },
+    { id: "e_info_bypass", type: "path", d: "M1000,338 Q1092,447 692,542", label: "not needed", lx: 1092, ly: 443 },
+    { id: "e_converge_output", type: "line", x1: 580, y1: 604, x2: 580, y2: 664 },
+    { id: "e_loopback", type: "path", d: "M708,556 C1100,556 1100,138 692,138", label: "consult again (≤3, R-1)", lx: 1004, ly: 350 }
+  ];
+
+  var svgNodesG = document.getElementById("nodes");
+  var svgEdgesG = document.getElementById("edges");
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  // draw edges
+  EDGES.forEach(function (e) {
+    var g = svgEl("g", { "class": "edge", "data-id": e.id });
+    if (e.type === "line") {
+      g.appendChild(svgEl("line", { x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, "marker-end": "url(#arrow2)" }));
+    } else {
+      g.appendChild(svgEl("path", { "class": "edge-path", d: e.d, "marker-end": "url(#arrow2)" }));
+    }
+    if (e.label) {
+      var mx, my;
+      if (e.type === "line") { mx = (e.x1 + e.x2) / 2; my = (e.y1 + e.y2) / 2; }
+      else { mx = e.lx; my = e.ly; }
+      var t = svgEl("text", { "class": "edge-label", x: mx + 8, y: my - 4, "text-anchor": "start" });
+      t.textContent = e.label;
+      g.appendChild(t);
+    }
+    svgEdgesG.appendChild(g);
+  });
+
+  // draw nodes
+  NODES.forEach(function (n) {
+    var g = svgEl("g", { "class": "node" + (n.kind === "store" ? " store" : "") + (n.kind === "ghost" ? " ghost" : ""), "data-id": n.id });
+    if (n.kind === "terminator") {
+      g.appendChild(svgEl("rect", { "class": "shape terminator", x: n.x, y: n.y, width: n.w, height: n.h, rx: n.rx }));
+      g.appendChild(textEl(n.x + n.w / 2, n.y + n.h / 2 - 3, n.label, 13, "middle", false));
+      g.appendChild(textEl(n.x + n.w / 2, n.y + n.h / 2 + 12, n.sub, 10, "middle", true));
+    } else if (n.kind === "diamond") {
+      var p = n.cx + "," + (n.cy - n.hh) + " " + (n.cx + n.hw) + "," + n.cy + " " + n.cx + "," + (n.cy + n.hh) + " " + (n.cx - n.hw) + "," + n.cy;
+      g.appendChild(svgEl("polygon", { "class": "shape", points: p }));
+      g.appendChild(textEl(n.cx, n.cy - 3, n.label, 12.5, "middle", false));
+      g.appendChild(textEl(n.cx, n.cy + 13, n.sub, 10, "middle", true));
+    } else if (n.kind === "store") {
+      g.appendChild(svgEl("rect", { "class": "shape store", x: n.x, y: n.y + 8, width: n.w, height: n.h - 8, rx: 4 }));
+      g.appendChild(svgEl("ellipse", { cx: n.x + n.w / 2, cy: n.y + 8, rx: n.w / 2, ry: 7, fill: "var(--store-soft)", stroke: "var(--line)", "stroke-width": "1.2" }));
+      g.appendChild(textEl(n.x + n.w / 2, n.y + n.h / 2 + 6, n.label, 11.5, "middle", false));
+      g.appendChild(textEl(n.x + n.w / 2, n.y + n.h / 2 + 20, n.sub, 9.5, "middle", true));
+    } else if (n.kind === "ghost") {
+      g.appendChild(svgEl("rect", { "class": "shape", x: n.x, y: n.y, width: n.w, height: n.h, rx: 6 }));
+      g.appendChild(textEl(n.x + n.w / 2, n.y + n.h / 2 - 2, n.label, 10.5, "middle", false));
+      g.appendChild(textEl(n.x + n.w / 2, n.y + n.h / 2 + 13, n.sub, 9.5, "middle", true));
+    }
+    svgNodesG.appendChild(g);
+  });
+
+  function textEl(x, y, str, size, anchor, sub) {
+    var t = svgEl("text", { x: x, y: y, "text-anchor": anchor, "font-size": size, "class": sub ? "label-sub" : "" });
+    t.textContent = str;
+    return t;
+  }
+
+  // ---------- scenarios ----------
+  var SC = {
+    info: {
+      title: "שאלת מידע",
+      intro: "המועמד שואל על התפקיד או החברה.",
+      action: "continue",
+      steps: [
+        { n: ["n_input"], e: [], t: "המועמד שולח הודעה: “אילו טכנולוגיות ענן דרושות לתפקיד?”" },
+        { n: ["n_route"], e: ["e_input_route"], t: "Main Agent קורא את כל ההיסטוריה ומחליט למי לנתב." },
+        { n: ["n_info"], e: ["e_route_info"], t: "מנותב ל-Info Advisor — שאלת מידע על התפקיד." },
+        { n: ["n_info"], e: [], t: "Info Advisor מקבל היסטוריה מלאה (R-2), לא סיכום, ומחליט: info_needed." },
+        { n: ["n_chromastore"], e: ["e_info_store"], t: "רק כי הוחלט info_needed — עכשיו, לא לפני — נשלף מידע מ-Chroma (R-3)." },
+        { n: ["n_converge"], e: ["e_infostore_converge"], t: "חזרה ל-Main Agent: רק verdict מובנה (JSON), לא טקסט חופשי (R-4). ההחלטה: לענות עכשיו." },
+        { n: ["n_output"], e: ["e_converge_output"], t: "תשובה יחידה נשלחת, עם label אחד: continue (R-5)." }
+      ]
+    },
+    sched: {
+      title: "קביעת ראיון",
+      intro: "המועמד מבקש/מאשר תאריך לראיון.",
+      action: "schedule",
+      steps: [
+        { n: ["n_input"], e: [], t: "המועמד כותב: “אפשר יום שלישי הבא?”" },
+        { n: ["n_route"], e: ["e_input_route"], t: "Main Agent מנתח את ההודעה." },
+        { n: ["n_sched"], e: ["e_route_sched"], t: "מנותב ל-Sched Advisor — בקשה שקשורה בתזמון." },
+        { n: ["n_sched"], e: [], t: "Sched Advisor פותר את התאריך היחסי (date_resolver) ומחליט: sched." },
+        { n: ["n_sqlstore"], e: ["e_sched_store"], t: "S-3: זמינות המשבצת נבדקת ישירות ב-SQLite — available=1 — באותו תור ממש, אף פעם לא מנוחשת." },
+        { n: ["n_converge"], e: ["e_store_converge_sql"], t: "משבצות מאומתות חוזרות ל-Main Agent." },
+        { n: ["n_output"], e: ["e_converge_output"], t: "תשובה יחידה עם label: schedule, ומציגה רק משבצות שאומתו כרגע." }
+      ]
+    },
+    decline: {
+      title: "סירוב → סיום",
+      intro: "המועמד מבקש להפסיק / לא מעוניין.",
+      action: "end",
+      steps: [
+        { n: ["n_input"], e: [], t: "המועמד כותב: “לא מעוניין יותר, תורידו אותי מהרשימה.”" },
+        { n: ["n_route"], e: ["e_input_route"], t: "Main Agent מזהה כוונת יציאה." },
+        { n: ["n_exit"], e: ["e_route_exit"], t: "מנותב ל-Exit Advisor." },
+        { n: ["n_exit"], e: [], t: "Exit Advisor מקבל היסטוריה מלאה ומזהה opt-out ברור — מחליט: End Conversation." },
+        { n: ["n_converge"], e: ["e_exit_converge"], t: "R-3: נתיב הזה אף פעם לא נוגע ב-DB או ב-Chroma — אין צורך." },
+        { n: ["n_output"], e: ["e_converge_output"], t: "תשובה יחידה עם label: end.", cls: "end" }
+      ]
+    },
+    multi: {
+      title: "התייעצות כפולה",
+      intro: "הודעה שדורשת יותר מיועץ אחד באותו תור (guard R-1).",
+      action: "schedule",
+      steps: [
+        { n: ["n_input"], e: [], t: "המועמד כותב: “בסדר, אז מתי אפשר?” — עמום, בלי הקשר קודם ברור." },
+        { n: ["n_route"], e: ["e_input_route"], t: "Main Agent מנתב תחילה ל-Info, ליתר ביטחון." },
+        { n: ["n_info"], e: ["e_route_info"], t: "Info Advisor בודק אם צריך מידע נוסף." },
+        { n: ["n_info"], e: [], t: "Info Advisor מחליט: not needed — אין כאן שאלת מידע." },
+        { n: ["n_converge"], e: ["e_info_bypass"], t: "חוזר ל-Main Agent בלי לגעת ב-Chroma כלל." },
+        { n: ["n_route"], e: ["e_loopback"], t: "החלטה: להתייעץ שוב (1/3 עד כה) — מנוצל בזכות guard R-1, לא נחסם." },
+        { n: ["n_sched"], e: ["e_route_sched"], t: "בפעם הזו מנותב ל-Sched Advisor." },
+        { n: ["n_sched"], e: [], t: "Sched Advisor מזהה שזו תגובה חיובית להצעה קודמת — מחליט: sched." },
+        { n: ["n_sqlstore"], e: ["e_sched_store"], t: "S-3: אימות available=1 מול SQLite." },
+        { n: ["n_converge"], e: ["e_store_converge_sql"], t: "2/3 יועצים נוצלו בתור הזה — עדיין בתוך guard R-1. ההחלטה: לענות." },
+        { n: ["n_output"], e: ["e_converge_output"], t: "תשובה יחידה, label: schedule." }
+      ]
+    }
+  };
+
+  var order = ["info", "sched", "decline", "multi"];
+  var tabsEl = document.getElementById("tabs");
+  order.forEach(function (key) {
+    var b = document.createElement("button");
+    b.className = "tab";
+    b.textContent = SC[key].title;
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", function () { setScenario(key); });
+    tabsEl.appendChild(b);
+  });
+
+  var current = "info";
+  var stepIndex = -1;
+  var visitedN = {};
+  var visitedE = {};
+  var playing = false;
+  var timer = null;
+
+  function setScenario(key) {
+    current = key;
+    Array.prototype.forEach.call(tabsEl.children, function (b, i) {
+      b.setAttribute("aria-pressed", order[i] === key ? "true" : "false");
+    });
+    stop();
+    stepIndex = -1;
+    visitedN = {}; visitedE = {};
+    document.getElementById("narration").textContent = SC[key].intro + " (Play / Step להתחלה)";
+    document.getElementById("figcap").textContent = SC[key].title + " — " + SC[key].intro;
+    render();
+  }
+
+  function applyStep() {
+    var sc = SC[current];
+    if (stepIndex >= sc.steps.length - 1) { stop(); return; }
+    stepIndex++;
+    var step = sc.steps[stepIndex];
+    step.n.forEach(function (id) { visitedN[id] = true; });
+    step.e.forEach(function (id) { visitedE[id] = true; });
+    document.getElementById("narration").innerHTML = step.t + '<span class="tag-badge">' + (step.n[0] || "") + "</span>";
+    render(step);
+    if (stepIndex >= sc.steps.length - 1) stop();
+  }
+
+  function render(currentStep) {
+    var curN = currentStep ? currentStep.n : [];
+    var curE = currentStep ? currentStep.e : [];
+    Array.prototype.forEach.call(svgNodesG.children, function (g) {
+      var id = g.getAttribute("data-id");
+      g.classList.toggle("visited", !!visitedN[id]);
+      g.classList.toggle("current", curN.indexOf(id) !== -1);
+      var isEndOutput = id === "n_output" && SC[current].action === "end" && visitedN["n_output"];
+      g.classList.toggle("end", isEndOutput);
+    });
+    Array.prototype.forEach.call(svgEdgesG.children, function (g) {
+      var id = g.getAttribute("data-id");
+      g.classList.toggle("visited", !!visitedE[id]);
+      g.classList.toggle("current", curE.indexOf(id) !== -1);
+    });
+    // consult meter
+    var count = ["n_exit", "n_sched", "n_info"].filter(function (id) { return visitedN[id]; }).length;
+    var dots = document.getElementById("meterDots").children;
+    for (var i = 0; i < dots.length; i++) dots[i].classList.toggle("filled", i < count);
+    // action pill
+    var pill = document.getElementById("actionPill");
+    if (visitedN["n_output"]) {
+      var action = SC[current].action;
+      pill.textContent = action;
+      pill.className = "action-pill " + action;
+    } else {
+      pill.textContent = "—";
+      pill.className = "action-pill continue";
+    }
+  }
+
+  function stop() {
+    playing = false;
+    clearInterval(timer);
+    document.getElementById("playBtn").textContent = "Play";
+  }
+
+  document.getElementById("stepBtn").addEventListener("click", function () { stop(); applyStep(); });
+  document.getElementById("resetBtn").addEventListener("click", function () { setScenario(current); });
+  document.getElementById("playBtn").addEventListener("click", function () {
+    if (playing) { stop(); return; }
+    playing = true;
+    document.getElementById("playBtn").textContent = "Pause";
+    timer = setInterval(function () {
+      if (stepIndex >= SC[current].steps.length - 1) { stop(); return; }
+      applyStep();
+    }, 1500);
+  });
+
+  setScenario("info");
+})();
+</script>
